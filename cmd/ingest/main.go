@@ -14,9 +14,19 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr, "usage: go run ./cmd/ingest <VOA article URL>")
+	if len(os.Args) < 2 || len(os.Args) > 3 {
+		fmt.Fprintln(os.Stderr, "usage: go run ./cmd/ingest <VOA article URL> [beginning|intermediate|advanced]")
 		os.Exit(2)
+	}
+	pageType := "article"
+	if len(os.Args) == 3 {
+		switch os.Args[2] {
+		case "beginning", "intermediate", "advanced":
+			pageType = "article:" + os.Args[2]
+		default:
+			fmt.Fprintln(os.Stderr, "level must be beginning, intermediate, or advanced")
+			os.Exit(2)
+		}
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -28,7 +38,7 @@ func main() {
 		fatal(err)
 	}
 	defer pool.Close()
-	item, err := dbgen.New(pool).UpsertSourceItem(ctx, dbgen.UpsertSourceItemParams{Source: "voa_learning_english", CanonicalUrl: os.Args[1], PageType: pgtype.Text{String: "article", Valid: true}})
+	item, err := dbgen.New(pool).UpsertSourceItem(ctx, dbgen.UpsertSourceItemParams{Source: "voa_learning_english", CanonicalUrl: os.Args[1], PageType: pgtype.Text{String: pageType, Valid: true}})
 	if err != nil {
 		fatal(err)
 	}

@@ -14,7 +14,7 @@ import (
 	"github.com/oldj/voa-learning-app/backend/internal/catalog"
 )
 
-var articleIDPattern = regexp.MustCompile(`/a/(?:[^/]*-)?(\d+)\.html$`)
+var articleIDPattern = regexp.MustCompile(`/a/(?:[^/]+/)?(?:[^/]*-)?(\d+)\.html$`)
 
 type ArticleParser struct{}
 
@@ -84,7 +84,11 @@ func validateStructuredArticle(source *url.URL, document *goquery.Document) erro
 		}
 		seen = true
 		target, err := url.Parse(main)
-		valid = err == nil && target.Path == source.Path && (kind == "NewsArticle" || kind == "Article")
+		sourceID, targetID := externalID(source.Path), ""
+		if target != nil {
+			targetID = externalID(target.Path)
+		}
+		valid = err == nil && sourceID != "" && sourceID == targetID && (kind == "NewsArticle" || kind == "Article" || kind == "VideoObject" || kind == "AudioObject")
 		return false
 	})
 	if seen && !valid {

@@ -170,7 +170,10 @@ INSERT INTO source_items (source, canonical_url, external_id, page_type, last_se
 VALUES ($1, $2, $3, $4, now())
 ON CONFLICT (source, canonical_url) DO UPDATE
 SET external_id = COALESCE(EXCLUDED.external_id, source_items.external_id),
-    page_type = COALESCE(EXCLUDED.page_type, source_items.page_type),
+    page_type = CASE
+        WHEN source_items.page_type LIKE 'article:%' AND EXCLUDED.page_type = 'article' THEN source_items.page_type
+        ELSE COALESCE(EXCLUDED.page_type, source_items.page_type)
+    END,
     last_seen_at = now()
 RETURNING id, source, canonical_url, external_id, page_type, first_seen_at, last_seen_at, fetch_state, next_fetch_at
 `

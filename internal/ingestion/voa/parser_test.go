@@ -2,6 +2,7 @@ package voa
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/oldj/voa-learning-app/backend/internal/catalog"
@@ -57,5 +58,16 @@ func TestArticleParserRejectsArticleURLServingLivePage(t *testing.T) {
 	defer func() { _ = file.Close() }()
 	if _, err := (ArticleParser{}).Parse("https://learningenglish.voanews.com/a/8187538.html", file); err == nil {
 		t.Fatal("expected structured-data mismatch")
+	}
+}
+
+func TestArticleParserAcceptsCanonicalSlugWithSameArticleID(t *testing.T) {
+	html := `<html><head><script type="application/ld+json">{"@type":"Article","mainEntityOfPage":"https://learningenglish.voanews.com/a/example-title/6217417.html"}</script></head><body><h1>English at the Movies</h1><main><article><p>VOA Learning English lesson.</p></article></main></body></html>`
+	content, err := (ArticleParser{}).Parse("https://learningenglish.voanews.com/a/6217417.html", strings.NewReader(html))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if content.Source.ExternalID != "6217417" {
+		t.Fatalf("external ID = %q", content.Source.ExternalID)
 	}
 }

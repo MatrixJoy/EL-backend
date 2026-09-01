@@ -68,6 +68,9 @@ func (p *Pipeline) Process(ctx context.Context, sourceID uuid.UUID) error {
 		_ = p.queries.MarkSnapshotParsed(ctx, dbgen.MarkSnapshotParsedParams{ID: snapshot.ID, ParserVersion: text(parserVersion), ParseState: "failed", ErrorCode: text("PARSE_FAILED")})
 		return err
 	}
+	if item.PageType.Valid && strings.HasPrefix(item.PageType.String, "article:") {
+		content.Level = catalog.Level(strings.TrimPrefix(item.PageType.String, "article:"))
+	}
 	if err := p.normalize(ctx, sourceID, content); err != nil {
 		return err
 	}
@@ -84,6 +87,9 @@ func (p *Pipeline) normalize(ctx context.Context, sourceID uuid.UUID, parsed cat
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := p.queries.WithTx(tx)
+	if parsed.Body == nil {
+		parsed.Body = []catalog.Block{}
+	}
 	body, _ := json.Marshal(parsed.Body)
 	published := pgtype.Timestamptz{Time: parsed.PublishedAt, Valid: !parsed.PublishedAt.IsZero()}
 	content, err := q.UpsertContent(ctx, dbgen.UpsertContentParams{SourceItemID: sourceID, Slug: "voa-" + parsed.Source.ExternalID, Type: dbgen.ContentType(parsed.Type), Title: parsed.Title, Level: text(string(parsed.Level)), PublishedAt: published, BodyBlocks: body, Column8: dbgen.RightsStatus(parsed.RightsStatus), Attribution: parsed.Attribution})
