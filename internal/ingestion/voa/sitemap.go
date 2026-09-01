@@ -1,0 +1,44 @@
+package voa
+
+import (
+	"encoding/xml"
+	"fmt"
+	"io"
+	"net/url"
+	"strings"
+	"time"
+)
+
+type SitemapEntry struct {
+	URL          string
+	LastModified time.Time
+}
+
+type sitemapURLSet struct {
+	URLs []struct {
+		Location     string `xml:"loc"`
+		LastModified string `xml:"lastmod"`
+	} `xml:"url"`
+}
+
+func ParseSitemap(reader io.Reader) ([]SitemapEntry, error) {
+	var payload sitemapURLSet
+	decoder := xml.NewDecoder(io.LimitReader(reader, 20<<20))
+	if err := decoder.Decode(&payload); err != nil {
+		return nil, fmt.Errorf("decode sitemap: %w", err)
+	}
+	entries := make([]SitemapEntry, 0, len(payload.URLs))
+	for _, item := range payload.URLs {
+		target, err := url.Parse(strings.TrimSpace(item.Location))
+		if err != nil || target.Scheme != "https" || target.Hostname() != "learningenglish.voanews.com" {
+			continue
+		}
+		if !strings.HasPrefix(target.Path, "/a/") {
+			continue
+		}
+		entry := SitemapEntry{URL: target.String()}
+		entry.LastModified, _ = time.Parse(time.RFC3339Nano, item.LastModified)
+		entries = append(entries, entry)
+	}
+	return entries, nil
+}

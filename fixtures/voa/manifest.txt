@@ -1,0 +1,22 @@
+# name|url
+home|https://learningenglish.voanews.com/
+beginning|https://learningenglish.voanews.com/p/5609.html
+intermediate|https://learningenglish.voanews.com/p/5610.html
+advanced|https://learningenglish.voanews.com/p/5611.html
+about|https://learningenglish.voanews.com/p/5373.html
+request-content|https://learningenglish.voanews.com/p/6861.html
+podcast-list|https://learningenglish.voanews.com/z/1689
+lesson-anna-1|https://learningenglish.voanews.com/a/6654462.html
+copyright-agencies|https://learningenglish.voanews.com/a/media-companies-seek-new-rules-to-protect-content-from-ai-training/7229749.html
+plagiarism|https://learningenglish.voanews.com/a/defining-plagiarism-how-to-avoid-it/7451640.html
+public-domain|https://learningenglish.voanews.com/a/some-classic-works-are-now-free-in-the-public-domain/6906081.html
+facebook-content|https://learningenglish.voanews.com/a/how-much-of-you-does-facebook-own/2561774.html
+latest-8187538|https://learningenglish.voanews.com/a/8187538.html
+latest-8187116|https://learningenglish.voanews.com/a/8187116.html
+latest-8186842|https://learningenglish.voanews.com/a/8186842.html
+latest-8186594|https://learningenglish.voanews.com/a/8186594.html
+latest-8186226|https://learningenglish.voanews.com/a/8186226.html
+latest-8185807|https://learningenglish.voanews.com/a/8185807.html
+latest-8185374|https://learningenglish.voanews.com/a/8185374.html
+latest-8184970|https://learningenglish.voanews.com/a/8184970.html
+latest-8184559|https://learningenglish.voanews.com/a/8184559.html
