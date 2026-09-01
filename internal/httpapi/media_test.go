@@ -36,3 +36,12 @@ func TestProxyMediaRejectsUnknownHost(t *testing.T) {
 		t.Fatal("expected host rejection")
 	}
 }
+
+func TestAllowedMediaHostIncludesOfficialVOAAudioCDN(t *testing.T) {
+	if !allowedMediaHost("voa-audio.voanews.eu") {
+		t.Fatal("official VOA audio CDN must be allowed")
+	}
+	if allowedMediaHost("voa-audio.voanews.eu.attacker.example") {
+		t.Fatal("lookalike host must be rejected")
+	}
+}

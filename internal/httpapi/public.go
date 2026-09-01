@@ -149,7 +149,11 @@ func (h publicHandlers) content(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	writeJSON(w, 200, map[string]any{"data": map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "publishedAt": nullableTime(row.PublishedAt), "bodyBlocks": json.RawMessage(row.BodyBlocks), "assets": assetDTO, "source": map[string]any{"name": row.Attribution, "canonicalUrl": row.CanonicalUrl}, "revision": row.Revision}})
+	bodyBlocks := json.RawMessage(row.BodyBlocks)
+	if len(row.BodyBlocks) == 0 || string(row.BodyBlocks) == "null" {
+		bodyBlocks = json.RawMessage("[]")
+	}
+	writeJSON(w, 200, map[string]any{"data": map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "publishedAt": nullableTime(row.PublishedAt), "bodyBlocks": bodyBlocks, "assets": assetDTO, "source": map[string]any{"name": row.Attribution, "canonicalUrl": row.CanonicalUrl}, "revision": row.Revision}})
 }
 
 func (h publicHandlers) search(w http.ResponseWriter, r *http.Request) {
@@ -282,7 +286,7 @@ func proxyMedia(w http.ResponseWriter, r *http.Request, sourceURL string, client
 
 func allowedMediaHost(host string) bool {
 	host = strings.ToLower(host)
-	return host == "learningenglish.voanews.com" || host == "gdb.voanews.com" || strings.HasSuffix(host, ".akamaized.net")
+	return host == "learningenglish.voanews.com" || host == "gdb.voanews.com" || host == "voa-audio.voanews.eu" || strings.HasSuffix(host, ".akamaized.net")
 }
 
 func NewMediaClient(timeout time.Duration) *http.Client {
