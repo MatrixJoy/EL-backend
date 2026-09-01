@@ -9,15 +9,16 @@ brew services start postgresql@16
 brew services start redis
 brew services start minio
 migrate -path db/migrations -database "$VOA_DATABASE_URL" up
-go run ./cmd/worker
-go run ./cmd/api
+./scripts/dev.sh
 ```
 
 首次投递一个已审核页面：
 
 ```bash
-go run ./cmd/ingest https://learningenglish.voanews.com/a/6654462.html
+go run ./cmd/ingest https://learningenglish.voanews.com/a/6654462.html beginning
 ```
+
+可选的第二个参数保留分级页上下文，支持 `beginning`、`intermediate`、`advanced`。
 
 质量检查：
 
@@ -27,4 +28,3 @@ VOA_INTEGRATION_DATABASE_URL="$VOA_DATABASE_URL" make integration-test
 ```
 
 架构、API、采集与合规说明见 [`docs/`](docs/)。
-
