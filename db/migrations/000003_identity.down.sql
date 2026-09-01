@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS user_events;
+DROP TABLE IF EXISTS learning_progress;
+DROP TABLE IF EXISTS bookmarks;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;

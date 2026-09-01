@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS publish_events;
+DROP TABLE IF EXISTS content_assets;
+DROP TABLE IF EXISTS assets;
+DROP TABLE IF EXISTS contents;
+DROP TABLE IF EXISTS source_snapshots;
+DROP TABLE IF EXISTS source_items;
+DROP TYPE IF EXISTS delivery_policy;
+DROP TYPE IF EXISTS rights_status;
+DROP TYPE IF EXISTS content_type;
+DROP TYPE IF EXISTS content_status;
+DROP TYPE IF EXISTS source_fetch_state;

@@ -1,0 +1,7 @@
+.DS_Store
+.env
+bin/
+coverage.out
+tmp/
+fixtures/voa/live/*.html
+
