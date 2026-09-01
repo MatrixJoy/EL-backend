@@ -1,0 +1,123 @@
+openapi: 3.1.0
+info:
+  title: VOA Learning App API
+  version: 0.2.0
+  description: Anonymous-first mobile API with VOA Learning English attribution.
+servers:
+  - url: /api/v1
+paths:
+  /bootstrap:
+    get: {operationId: getBootstrap, responses: {"200": {$ref: "#/components/responses/JSONSuccess"}}}
+  /home:
+    get: {operationId: getHome, responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "429": {$ref: "#/components/responses/Error"}}}
+  /categories:
+    get: {operationId: listCategories, responses: {"200": {$ref: "#/components/responses/JSONSuccess"}}}
+  /categories/{slug}/contents:
+    get:
+      operationId: listCategoryContents
+      parameters: [{$ref: "#/components/parameters/Slug"}]
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}}
+  /contents/{id}:
+    get:
+      operationId: getContent
+      parameters:
+        - {$ref: "#/components/parameters/ID"}
+        - {name: If-None-Match, in: header, schema: {type: string}}
+      responses:
+        "200": {$ref: "#/components/responses/JSONSuccess"}
+        "304": {description: Not modified}
+        "404": {$ref: "#/components/responses/Error"}
+  /contents:
+    get:
+      operationId: listContents
+      parameters:
+        - {name: cursor, in: query, schema: {type: string}}
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "400": {$ref: "#/components/responses/Error"}}
+  /search:
+    get:
+      operationId: searchContents
+      parameters:
+        - {name: q, in: query, required: true, schema: {type: string, minLength: 2, maxLength: 100}}
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "400": {$ref: "#/components/responses/Error"}}
+  /sync:
+    get:
+      operationId: syncCatalog
+      parameters:
+        - {name: cursor, in: query, schema: {type: string}}
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "400": {$ref: "#/components/responses/Error"}}
+  /series:
+    get: {operationId: listSeries, responses: {"200": {$ref: "#/components/responses/JSONSuccess"}}}
+  /series/{id}:
+    get:
+      operationId: getSeries
+      parameters: [{$ref: "#/components/parameters/ID"}]
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "404": {$ref: "#/components/responses/Error"}}
+  /media/{id}:
+    parameters:
+      - {$ref: "#/components/parameters/ID"}
+      - {name: Range, in: header, schema: {type: string, pattern: '^bytes='}}
+    get:
+      operationId: streamMedia
+      responses:
+        "200": {description: Complete media response}
+        "206": {description: Partial media response}
+        "404": {$ref: "#/components/responses/Error"}
+        "416": {description: Invalid range}
+    head:
+      operationId: headMedia
+      responses: {"200": {description: Media headers}, "404": {$ref: "#/components/responses/Error"}}
+  /auth/apple:
+    post:
+      operationId: authenticateWithApple
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [identityToken, nonce], properties: {identityToken: {type: string}, nonce: {type: string}, migration: {type: object}}}}}}
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "401": {$ref: "#/components/responses/Error"}}
+  /me:
+    get: {operationId: getMe, security: [{bearerAuth: []}], responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "401": {$ref: "#/components/responses/Error"}}}
+    delete: {operationId: deleteMe, security: [{bearerAuth: []}], responses: {"204": {description: Account deleted}, "401": {$ref: "#/components/responses/Error"}}}
+  /me/bookmarks/{contentId}:
+    parameters: [{$ref: "#/components/parameters/ContentID"}]
+    put: {operationId: addBookmark, security: [{bearerAuth: []}], responses: {"204": {description: Bookmark saved}, "401": {$ref: "#/components/responses/Error"}}}
+    delete: {operationId: deleteBookmark, security: [{bearerAuth: []}], responses: {"204": {description: Bookmark deleted}, "401": {$ref: "#/components/responses/Error"}}}
+  /me/progress/{contentId}:
+    put:
+      operationId: updateProgress
+      security: [{bearerAuth: []}]
+      parameters: [{$ref: "#/components/parameters/ContentID"}]
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [positionSeconds, completed, clientUpdatedAt], properties: {positionSeconds: {type: integer, minimum: 0}, completed: {type: boolean}, clientUpdatedAt: {type: string, format: date-time}}}}}}
+      responses: {"204": {description: Progress saved}, "401": {$ref: "#/components/responses/Error"}}
+  /me/sync:
+    get:
+      operationId: syncUserData
+      security: [{bearerAuth: []}]
+      parameters: [{name: cursor, in: query, schema: {type: string}}]
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "401": {$ref: "#/components/responses/Error"}}
+components:
+  securitySchemes:
+    bearerAuth: {type: http, scheme: bearer}
+  parameters:
+    ID: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
+    Slug: {name: slug, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 100}}
+    ContentID: {name: contentId, in: path, required: true, schema: {type: string, format: uuid}}
+  responses:
+    JSONSuccess:
+      description: Successful JSON response
+      content:
+        application/json:
+          schema: {type: object, required: [data], properties: {data: {}}}
+    Error:
+      description: Error response
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+  schemas:
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: {type: string}
+            message: {type: string}
+            requestId: {type: string}
