@@ -1,0 +1,62 @@
+name: Backend CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: voa_learning
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      VOA_INTEGRATION_DATABASE_URL: postgres://postgres:postgres@localhost:5432/voa_learning?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Install database and contract tools
+        run: |
+          curl -fsSL https://github.com/golang-migrate/migrate/releases/download/v4.19.1/migrate.linux-amd64.tar.gz | tar xz -C /tmp
+          sudo install /tmp/migrate /usr/local/bin/migrate
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
+          go install github.com/oasdiff/oasdiff@latest
+      - name: Validate migrations up and down
+        run: |
+          migrate -path db/migrations -database "$VOA_INTEGRATION_DATABASE_URL" up
+          migrate -path db/migrations -database "$VOA_INTEGRATION_DATABASE_URL" down -all
+          migrate -path db/migrations -database "$VOA_INTEGRATION_DATABASE_URL" up
+      - name: Verify generated SQL code
+        run: |
+          sqlc generate
+          git diff --exit-code -- internal/repository/dbgen
+      - name: Test and vet
+        run: |
+          go test ./...
+          go test -race ./...
+          go vet ./...
+          go test ./internal/identity ./internal/httpapi -count=1
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.4.0
+      - name: Validate OpenAPI compatibility
+        shell: bash
+        run: |
+          oasdiff validate api/openapi.yaml
+          if [[ "${{ github.event_name }}" == "pull_request" ]] && git cat-file -e "${{ github.event.pull_request.base.sha }}:api/openapi.yaml"; then
+            git show "${{ github.event.pull_request.base.sha }}:api/openapi.yaml" > /tmp/openapi-base.yaml
+            oasdiff breaking /tmp/openapi-base.yaml api/openapi.yaml
+          fi

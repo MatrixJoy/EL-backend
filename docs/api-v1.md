@@ -1,0 +1,107 @@
+# Mobile API v1 草案
+
+## 1. 通用约定
+
+- Base URL：`https://api.example.com/api/v1`
+- 响应：JSON / UTF-8；字段 camelCase；时间 UTC ISO 8601。
+- 分页：`limit`（默认 20，最大 50）与 opaque `cursor`。
+- 缓存：列表和详情返回 `ETag`；客户端使用 `If-None-Match`。
+- 契约最终以 OpenAPI 3.1 文件为准。
+- 首发匿名可用：公共读取和媒体播放不需要 access token，但仍受 IP/设备级限流保护。
+
+## 2. 公共读取端点
+
+| Method | Path | 用途 |
+|---|---|---|
+| GET | `/bootstrap` | App 配置、分类、功能开关和最低支持版本 |
+| GET | `/home` | 首页编排后的 section 列表 |
+| GET | `/categories` | 分级与主题树 |
+| GET | `/categories/{slug}/contents` | 分类内容流 |
+| GET | `/series/{id}` | 系列信息及剧集/课程列表 |
+| GET | `/contents/{id}` | 内容详情、正文 block、资源与来源 |
+| GET | `/search?q=&level=&type=` | 搜索与筛选 |
+| GET | `/sync?cursor=` | 内容增量 upsert/tombstone |
+| GET/HEAD | `/media/{assetId}` | 首期通过后台流式代理交付，支持 Range |
+
+## 3. 用户端点（后续）
+
+| Method | Path | 用途 |
+|---|---|---|
+| POST | `/auth/apple` | Apple identity token 换取会话 |
+| GET | `/me` | 当前用户 |
+| PUT/DELETE | `/me/bookmarks/{contentId}` | 收藏/取消收藏 |
+| PUT | `/me/progress/{contentId}` | 幂等写学习进度 |
+| GET | `/me/sync?cursor=` | 用户数据增量同步 |
+| DELETE | `/me` | 删除账号与关联个人数据 |
+
+## 4. 代表性响应
+
+```json
+{
+  "data": {
+    "id": "018f...",
+    "type": "lesson",
+    "title": "Lesson 1: Who Are You?",
+    "summary": null,
+    "level": "beginning",
+    "publishedAt": "2022-07-20T00:00:00Z",
+    "series": { "id": "018e...", "title": "Let's Learn English with Anna" },
+    "bodyBlocks": [
+      { "type": "heading", "text": "Lesson Plan", "level": 2 },
+      { "type": "paragraph", "text": "..." }
+    ],
+    "assets": [
+      {
+        "id": "0190...",
+        "kind": "video",
+        "quality": "720p",
+        "durationSeconds": 301,
+        "playbackUrl": "/api/v1/media/0190..."
+      }
+    ],
+    "source": {
+      "name": "VOA Learning English",
+      "canonicalUrl": "https://learningenglish.voanews.com/a/6654462.html"
+    },
+    "revision": 3
+  }
+}
+```
+
+## 5. 增量同步
+
+```json
+{
+  "data": {
+    "changes": [
+      { "sequence": 1001, "operation": "upsert", "entity": "content", "id": "018f...", "revision": 3 },
+      { "sequence": 1002, "operation": "delete", "entity": "content", "id": "017a..." }
+    ],
+    "nextCursor": "opaque-token",
+    "hasMore": false
+  }
+}
+```
+
+客户端对 upsert 再取详情，或后续由 `include=compact` 返回紧凑实体。cursor 只作为不透明值保存；服务端可将其签名并包含 sequence 与过期策略。
+
+## 6. 错误
+
+```json
+{
+  "error": {
+    "code": "CONTENT_NOT_FOUND",
+    "message": "The requested content is unavailable.",
+    "requestId": "req_..."
+  }
+}
+```
+
+稳定错误码包括 `VALIDATION_ERROR`、`UNAUTHORIZED`、`FORBIDDEN`、`RATE_LIMITED`、`CONTENT_NOT_FOUND`、`MEDIA_UNAVAILABLE`、`UPSTREAM_TEMPORARILY_UNAVAILABLE` 和 `INTERNAL_ERROR`。
+
+## 7. 契约测试要求
+
+- OpenAPI lint 与 breaking-change 检查进入 CI。
+- iOS 从固定版本契约生成或校验 DTO。
+- 所有端点测试认证、分页边界、304、限流、未知字段兼容和错误结构。
+- 媒体单独测试 HEAD、Range、缓存和断点续传。
