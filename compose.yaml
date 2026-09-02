@@ -1,0 +1,92 @@
+name: voa-learning
+
+x-app-environment: &app-environment
+  VOA_ENV: docker
+  VOA_HTTP_ADDR: :8080
+  VOA_DATABASE_URL: postgres://voa:voa@postgres:5432/voa_learning?sslmode=disable
+  VOA_REDIS_ADDR: redis:6379
+  VOA_OBJECT_BUCKET: voa-learning-raw
+  VOA_OBJECT_ENDPOINT: minio:9000
+  VOA_OBJECT_ACCESS_KEY: minioadmin
+  VOA_OBJECT_SECRET_KEY: minioadmin
+  VOA_OBJECT_USE_TLS: "false"
+  VOA_USER_AGENT: VOALearningApp/0.1 (+https://example.com/contact)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: voa_learning
+      POSTGRES_USER: voa
+      POSTGRES_PASSWORD: voa
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voa -d voa_learning"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    image: migrate/migrate:v4.18.3
+    command: ["-path", "/migrations", "-database", "postgres://voa:voa@postgres:5432/voa_learning?sslmode=disable", "up"]
+    volumes:
+      - ./db/migrations:/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    restart: unless-stopped
+    command: server /data --console-address :9001
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio-data:/data
+
+  api:
+    build: .
+    image: voa-learning-backend:local
+    restart: unless-stopped
+    environment: *app-environment
+    ports:
+      - "8080:8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+
+  worker:
+    image: voa-learning-backend:local
+    restart: unless-stopped
+    entrypoint: ["/usr/local/bin/worker"]
+    environment: *app-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

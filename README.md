@@ -38,3 +38,13 @@ VOA_INTEGRATION_DATABASE_URL="$VOA_DATABASE_URL" make integration-test
 ```
 
 架构、API、采集与合规说明见 [`docs/`](docs/)。
+
+## 测试服务器 Docker 部署
+
+完成后端开发和测试后，部署到默认测试服务器 `oldj@10.10.1.4`：
+
+```bash
+./scripts/deploy-docker.sh
+```
+
+脚本同步代码、在服务器上构建镜像、执行数据库迁移、启动 API 与 Worker，并等待远端健康检查通过。可用 `VOA_DEPLOY_HOST`、`VOA_DEPLOY_USER` 和 `VOA_DEPLOY_DIR` 覆盖默认目标。
