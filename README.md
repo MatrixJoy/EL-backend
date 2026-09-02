@@ -12,6 +12,16 @@ migrate -path db/migrations -database "$VOA_DATABASE_URL" up
 ./scripts/dev.sh
 ```
 
+如果需要关闭终端后继续为模拟器提供 API，使用由 macOS `launchd` 监督并自动重启的后台服务模式：
+
+```bash
+./scripts/dev-service.sh start
+./scripts/dev-service.sh status
+./scripts/dev-service.sh stop
+```
+
+运行日志和生成的服务文件保存在被 Git 忽略的 `tmp/dev-service/` 中。
+
 首次投递一个已审核页面：
 
 ```bash
