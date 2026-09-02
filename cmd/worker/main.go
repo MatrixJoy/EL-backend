@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -85,10 +85,10 @@ func main() {
 			stop()
 		}
 	}()
-	if _, err := queueClient.Enqueue(discoveryTask, asynq.Unique(25*time.Minute)); err != nil && !strings.Contains(err.Error(), "conflicts with another task") {
+	if _, err := queueClient.Enqueue(discoveryTask, asynq.Unique(25*time.Minute)); err != nil && !errors.Is(err, asynq.ErrDuplicateTask) && !errors.Is(err, asynq.ErrTaskIDConflict) {
 		logger.Error("enqueue initial discovery", "error", err)
 	}
-	if _, err := queueClient.Enqueue(fullDiscoveryTask, asynq.Unique(23*time.Hour), asynq.Queue("discovery")); err != nil && !strings.Contains(err.Error(), "conflicts with another task") {
+	if _, err := queueClient.Enqueue(fullDiscoveryTask, asynq.Unique(23*time.Hour), asynq.Queue("discovery")); err != nil && !errors.Is(err, asynq.ErrDuplicateTask) && !errors.Is(err, asynq.ErrTaskIDConflict) {
 		logger.Error("enqueue full discovery", "error", err)
 	}
 	go func() {

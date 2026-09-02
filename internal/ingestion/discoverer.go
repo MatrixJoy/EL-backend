@@ -3,6 +3,7 @@ package ingestion
 import (
 	"compress/gzip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -67,7 +68,7 @@ func (d *Discoverer) Discover(ctx context.Context, sitemapURL string) (int, erro
 		if taskErr != nil {
 			return 0, taskErr
 		}
-		if _, taskErr = d.enqueuer.Enqueue(task, asynq.Unique(24*time.Hour), asynq.MaxRetry(5), asynq.Queue("discovery")); taskErr != nil && !strings.Contains(taskErr.Error(), "conflicts with another task") {
+		if _, taskErr = d.enqueuer.Enqueue(task, asynq.Unique(24*time.Hour), asynq.MaxRetry(5), asynq.Queue("discovery")); taskErr != nil && !errors.Is(taskErr, asynq.ErrDuplicateTask) && !errors.Is(taskErr, asynq.ErrTaskIDConflict) {
 			return 0, fmt.Errorf("enqueue child sitemap: %w", taskErr)
 		}
 	}
@@ -84,7 +85,7 @@ func (d *Discoverer) Discover(ctx context.Context, sitemapURL string) (int, erro
 		if item.FetchState != dbgen.SourceFetchStateDiscovered {
 			continue
 		}
-		if _, err := d.enqueuer.Enqueue(task, asynq.Unique(30*24*time.Hour), asynq.MaxRetry(3), asynq.Queue("crawl")); err != nil && !strings.Contains(err.Error(), "conflicts with another task") {
+		if _, err := d.enqueuer.Enqueue(task, asynq.Unique(30*24*time.Hour), asynq.MaxRetry(3), asynq.Queue("crawl")); err != nil && !errors.Is(err, asynq.ErrDuplicateTask) && !errors.Is(err, asynq.ErrTaskIDConflict) {
 			return queued, fmt.Errorf("enqueue source: %w", err)
 		}
 		queued++
