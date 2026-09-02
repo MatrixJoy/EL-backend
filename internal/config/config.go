@@ -12,6 +12,7 @@ type Config struct {
 	ReadHeaderTimeout time.Duration
 	ShutdownTimeout   time.Duration
 	FetchTimeout      time.Duration
+	CrawlDelay        time.Duration
 	UserAgent         string
 	DatabaseURL       string
 	RedisAddr         string
@@ -33,6 +34,10 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	crawlDelay, err := duration("VOA_CRAWL_DELAY", 1500*time.Millisecond)
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		Environment:       value("VOA_ENV", "development"),
@@ -40,6 +45,7 @@ func Load() (Config, error) {
 		ReadHeaderTimeout: 5 * time.Second,
 		ShutdownTimeout:   shutdownTimeout,
 		FetchTimeout:      fetchTimeout,
+		CrawlDelay:        crawlDelay,
 		UserAgent:         value("VOA_USER_AGENT", "VOALearningApp/0.1 (+https://example.com/contact)"),
 		DatabaseURL:       value("VOA_DATABASE_URL", "postgres://localhost:5432/voa_learning?sslmode=disable"),
 		RedisAddr:         value("VOA_REDIS_ADDR", "localhost:6379"),

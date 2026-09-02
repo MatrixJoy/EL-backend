@@ -50,12 +50,13 @@ func main() {
 		os.Exit(1)
 	}
 	fetcher := voa.NewFetcher(&http.Client{Timeout: cfg.FetchTimeout}, cfg.UserAgent, "learningenglish.voanews.com")
+	fetcher.SetMinimumInterval(cfg.CrawlDelay)
 	pipeline := ingestion.NewPipeline(pool, store, fetcher)
 	redisOptions := asynq.RedisClientOpt{Addr: cfg.RedisAddr}
 	queueClient := asynq.NewClient(redisOptions)
 	defer func() { _ = queueClient.Close() }()
 	discoverer := ingestion.NewDiscoverer(dbgen.New(pool), &http.Client{Timeout: cfg.FetchTimeout}, queueClient, cfg.UserAgent)
-	server := asynq.NewServer(redisOptions, asynq.Config{Concurrency: 4})
+	server := asynq.NewServer(redisOptions, asynq.Config{Concurrency: 4, Queues: map[string]int{"default": 3, "discovery": 2, "crawl": 1}})
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(ingestion.TaskProcessSource, ingestion.ProcessSourceHandler(pipeline))
 	mux.HandleFunc(ingestion.TaskDiscoverSitemap, ingestion.DiscoverSitemapHandler(discoverer))
@@ -69,6 +70,15 @@ func main() {
 		logger.Error("schedule discovery", "error", err)
 		os.Exit(1)
 	}
+	fullDiscoveryTask, err := ingestion.NewDiscoverSitemapTask("https://learningenglish.voanews.com/sitemap.xml")
+	if err != nil {
+		logger.Error("build full discovery task", "error", err)
+		os.Exit(1)
+	}
+	if _, err := scheduler.Register("@every 24h", fullDiscoveryTask, asynq.Unique(23*time.Hour), asynq.Queue("discovery")); err != nil {
+		logger.Error("schedule full discovery", "error", err)
+		os.Exit(1)
+	}
 	go func() {
 		if err := scheduler.Run(); err != nil {
 			logger.Error("scheduler failed", "error", err)
@@ -77,6 +87,9 @@ func main() {
 	}()
 	if _, err := queueClient.Enqueue(discoveryTask, asynq.Unique(25*time.Minute)); err != nil && !strings.Contains(err.Error(), "conflicts with another task") {
 		logger.Error("enqueue initial discovery", "error", err)
+	}
+	if _, err := queueClient.Enqueue(fullDiscoveryTask, asynq.Unique(23*time.Hour), asynq.Queue("discovery")); err != nil && !strings.Contains(err.Error(), "conflicts with another task") {
+		logger.Error("enqueue full discovery", "error", err)
 	}
 	go func() {
 		logger.Info("worker ready", "env", cfg.Environment)

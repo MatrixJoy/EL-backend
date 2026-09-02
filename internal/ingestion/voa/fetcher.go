@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"time"
 )
 
 const defaultMaxHTMLBytes int64 = 5 << 20
@@ -30,11 +32,16 @@ type FetchResult struct {
 }
 
 type Fetcher struct {
-	client       *http.Client
-	userAgent    string
-	allowedHosts map[string]struct{}
-	maxHTMLBytes int64
+	client          *http.Client
+	userAgent       string
+	allowedHosts    map[string]struct{}
+	maxHTMLBytes    int64
+	minimumInterval time.Duration
+	rateMu          sync.Mutex
+	nextRequest     time.Time
 }
+
+func (f *Fetcher) SetMinimumInterval(interval time.Duration) { f.minimumInterval = interval }
 
 func NewFetcher(client *http.Client, userAgent string, allowedHosts ...string) *Fetcher {
 	hosts := make(map[string]struct{}, len(allowedHosts))
@@ -57,6 +64,9 @@ func NewFetcher(client *http.Client, userAgent string, allowedHosts ...string) *
 }
 
 func (f *Fetcher) Fetch(ctx context.Context, input FetchRequest) (FetchResult, error) {
+	if err := f.waitForRateLimit(ctx); err != nil {
+		return FetchResult{}, err
+	}
 	target, err := url.Parse(input.URL)
 	if err != nil {
 		return FetchResult{}, fmt.Errorf("parse URL: %w", err)
@@ -115,6 +125,30 @@ func (f *Fetcher) Fetch(ctx context.Context, input FetchRequest) (FetchResult, e
 	hash := sha256.Sum256(body)
 	result.SHA256 = hex.EncodeToString(hash[:])
 	return result, nil
+}
+
+func (f *Fetcher) waitForRateLimit(ctx context.Context) error {
+	if f.minimumInterval <= 0 {
+		return nil
+	}
+	f.rateMu.Lock()
+	wait := time.Until(f.nextRequest)
+	if wait < 0 {
+		wait = 0
+	}
+	f.nextRequest = time.Now().Add(wait + f.minimumInterval)
+	f.rateMu.Unlock()
+	if wait == 0 {
+		return nil
+	}
+	timer := time.NewTimer(wait)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func (f *Fetcher) validateURL(target *url.URL) error {

@@ -11,6 +11,7 @@ x-app-environment: &app-environment
   VOA_OBJECT_SECRET_KEY: minioadmin
   VOA_OBJECT_USE_TLS: "false"
   VOA_USER_AGENT: VOALearningApp/0.1 (+https://example.com/contact)
+  VOA_CRAWL_DELAY: 1500ms
 
 services:
   postgres:

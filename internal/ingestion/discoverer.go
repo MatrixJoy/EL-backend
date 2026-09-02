@@ -58,12 +58,21 @@ func (d *Discoverer) Discover(ctx context.Context, sitemapURL string) (int, erro
 		defer func() { _ = gz.Close() }()
 		reader = io.LimitReader(gz, maxSitemapBytes+1)
 	}
-	entries, err := voa.ParseSitemap(reader)
+	document, err := voa.ParseSitemapDocument(reader)
 	if err != nil {
 		return 0, err
 	}
+	for _, child := range document.Children {
+		task, taskErr := NewDiscoverSitemapTask(child)
+		if taskErr != nil {
+			return 0, taskErr
+		}
+		if _, taskErr = d.enqueuer.Enqueue(task, asynq.Unique(24*time.Hour), asynq.MaxRetry(5), asynq.Queue("discovery")); taskErr != nil && !strings.Contains(taskErr.Error(), "conflicts with another task") {
+			return 0, fmt.Errorf("enqueue child sitemap: %w", taskErr)
+		}
+	}
 	queued := 0
-	for _, entry := range entries {
+	for _, entry := range document.Entries {
 		item, err := d.queries.UpsertSourceItem(ctx, dbgen.UpsertSourceItemParams{Source: "voa_learning_english", CanonicalUrl: entry.URL, PageType: pgtype.Text{String: "article", Valid: true}})
 		if err != nil {
 			return queued, fmt.Errorf("upsert discovered item: %w", err)
@@ -72,7 +81,10 @@ func (d *Discoverer) Discover(ctx context.Context, sitemapURL string) (int, erro
 		if err != nil {
 			return queued, err
 		}
-		if _, err := d.enqueuer.Enqueue(task, asynq.Unique(25*time.Minute), asynq.MaxRetry(5), asynq.Queue("default")); err != nil && !strings.Contains(err.Error(), "conflicts with another task") {
+		if item.FetchState != dbgen.SourceFetchStateDiscovered {
+			continue
+		}
+		if _, err := d.enqueuer.Enqueue(task, asynq.Unique(30*24*time.Hour), asynq.MaxRetry(3), asynq.Queue("crawl")); err != nil && !strings.Contains(err.Error(), "conflicts with another task") {
 			return queued, fmt.Errorf("enqueue source: %w", err)
 		}
 		queued++
