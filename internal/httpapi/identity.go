@@ -10,8 +10,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/oldj/voa-learning-app/backend/internal/identity"
-	"github.com/oldj/voa-learning-app/backend/internal/repository/dbgen"
+	"github.com/oldj/english-learning/backend/internal/identity"
+	"github.com/oldj/english-learning/backend/internal/repository/dbgen"
 )
 
 type userContextKey struct{}

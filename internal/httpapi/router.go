@@ -8,9 +8,9 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/oldj/voa-learning-app/backend/internal/identity"
-	"github.com/oldj/voa-learning-app/backend/internal/platform/objectstore"
-	"github.com/oldj/voa-learning-app/backend/internal/repository/dbgen"
+	"github.com/oldj/english-learning/backend/internal/identity"
+	"github.com/oldj/english-learning/backend/internal/platform/objectstore"
+	"github.com/oldj/english-learning/backend/internal/repository/dbgen"
 )
 
 type BuildInfo struct {
@@ -25,6 +25,13 @@ type Dependencies struct {
 	Publisher    publicationPublisher
 	PublishToken string
 }
+
+const (
+	publicRequestsPerMinute  = 600
+	publicRequestBurst       = 120
+	accountRequestsPerMinute = 120
+	accountRequestBurst      = 30
+)
 
 func NewRouter(logger *slog.Logger, build BuildInfo, dependencies ...Dependencies) http.Handler {
 	var deps Dependencies
@@ -47,24 +54,29 @@ func NewRouter(logger *slog.Logger, build BuildInfo, dependencies ...Dependencie
 		})
 	})
 	router.Route("/api/v1", func(r chi.Router) {
-		r.Use(newIPRateLimiter(120, 30).middleware)
-		r.Get("/bootstrap", func(w http.ResponseWriter, _ *http.Request) {
-			writeJSON(w, http.StatusOK, map[string]any{
-				"data": map[string]any{
-					"apiVersion": "v1",
-					"anonymous":  true,
-					"features": map[string]bool{
-						"mediaStreaming": true,
-						"offlineMedia":   false,
+		r.Group(func(public chi.Router) {
+			public.Use(newIPRateLimiter(publicRequestsPerMinute, publicRequestBurst).middleware)
+			public.Get("/bootstrap", func(w http.ResponseWriter, _ *http.Request) {
+				writeJSON(w, http.StatusOK, map[string]any{
+					"data": map[string]any{
+						"apiVersion": "v1",
+						"anonymous":  true,
+						"features": map[string]bool{
+							"mediaStreaming": true,
+							"offlineMedia":   false,
+						},
 					},
-				},
+				})
 			})
+			if deps.Queries != nil {
+				mountPublicRoutes(public, deps)
+			}
 		})
-		if deps.Queries != nil {
-			mountPublicRoutes(r, deps)
-		}
 		if deps.Identity != nil {
-			mountIdentityRoutes(r, deps.Identity)
+			r.Group(func(account chi.Router) {
+				account.Use(newIPRateLimiter(accountRequestsPerMinute, accountRequestBurst).middleware)
+				mountIdentityRoutes(account, deps.Identity)
+			})
 		}
 	})
 	if deps.Publisher != nil && deps.PublishToken != "" {

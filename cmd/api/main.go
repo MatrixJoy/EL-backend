@@ -11,12 +11,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/oldj/voa-learning-app/backend/internal/config"
-	"github.com/oldj/voa-learning-app/backend/internal/httpapi"
-	"github.com/oldj/voa-learning-app/backend/internal/identity"
-	"github.com/oldj/voa-learning-app/backend/internal/platform/objectstore"
-	"github.com/oldj/voa-learning-app/backend/internal/publishing"
-	"github.com/oldj/voa-learning-app/backend/internal/repository/dbgen"
+	"github.com/oldj/english-learning/backend/internal/config"
+	"github.com/oldj/english-learning/backend/internal/httpapi"
+	"github.com/oldj/english-learning/backend/internal/identity"
+	"github.com/oldj/english-learning/backend/internal/platform/objectstore"
+	"github.com/oldj/english-learning/backend/internal/publishing"
+	"github.com/oldj/english-learning/backend/internal/repository/dbgen"
 )
 
 func main() {

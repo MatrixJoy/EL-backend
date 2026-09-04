@@ -14,9 +14,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/oldj/voa-learning-app/backend/internal/catalog"
-	"github.com/oldj/voa-learning-app/backend/internal/ingestion/voa"
-	"github.com/oldj/voa-learning-app/backend/internal/repository/dbgen"
+	"github.com/oldj/english-learning/backend/internal/catalog"
+	"github.com/oldj/english-learning/backend/internal/ingestion/voa"
+	"github.com/oldj/english-learning/backend/internal/repository/dbgen"
 )
 
 const parserVersion = "voa-article-v1"

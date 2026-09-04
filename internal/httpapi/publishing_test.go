@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/oldj/voa-learning-app/backend/internal/publishing"
+	"github.com/oldj/english-learning/backend/internal/publishing"
 )
 
 type fakePublicationPublisher struct {

@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,6 +18,19 @@ func TestIPRateLimiterRejectsBurst(t *testing.T) {
 		handler.ServeHTTP(response, request)
 		if response.Code != expected {
 			t.Fatalf("request %d status=%d want=%d", index, response.Code, expected)
+		}
+	}
+}
+
+func TestPublicAPIAllowsPlayerRequestBurst(t *testing.T) {
+	handler := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), BuildInfo{})
+	for index := 0; index < 100; index++ {
+		request := httptest.NewRequest(http.MethodGet, "/api/v1/bootstrap", nil)
+		request.RemoteAddr = "203.0.113.2:1234"
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		if response.Code != http.StatusOK {
+			t.Fatalf("request %d status=%d want=%d", index, response.Code, http.StatusOK)
 		}
 	}
 }

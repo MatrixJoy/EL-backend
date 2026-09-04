@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/oldj/voa-learning-app/backend/internal/catalog"
+	"github.com/oldj/english-learning/backend/internal/catalog"
 )
 
 var articleIDPattern = regexp.MustCompile(`/a/(?:[^/]+/)?(?:[^/]*-)?(\d+)\.html$`)

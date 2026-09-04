@@ -14,7 +14,7 @@ while IFS='|' read -r name source_url; do
     echo "capturing $name"
     curl --fail --silent --show-error --location \
         --max-time 30 \
-        --user-agent 'VOALearningApp-FixtureCapture/0.1' \
+        --user-agent 'EnglishLearningFixtureCapture/0.1' \
         --output "$output_dir/$name.html" \
         "$source_url"
 done < "$manifest"

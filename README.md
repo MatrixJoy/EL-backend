@@ -1,6 +1,6 @@
-# VOA Learning Backend
+# English Learning Backend
 
-VOA Learning English 客户端的 Go 后台。服务负责采集、规范化、审核和代理上游内容，向客户端提供稳定的 v1 API。
+面向多数据源英语学习客户端的 Go 后台。服务负责接收 CMS 已审核内容、管理在线目录与媒体，并向客户端提供稳定的 v1 API。VOA Learning English 是当前的数据源连接器之一。
 
 ## 本地运行
 
@@ -49,7 +49,7 @@ CMS 审核后的双环境发布协议见 [`docs/cms-publication.md`](docs/cms-pu
 ./scripts/deploy-docker.sh
 ```
 
-脚本同步代码、在服务器上构建镜像、执行数据库迁移、启动 API 与 Worker，并等待远端健康检查通过。可用 `VOA_DEPLOY_HOST`、`VOA_DEPLOY_USER` 和 `VOA_DEPLOY_DIR` 覆盖默认目标。
+脚本同步代码、在服务器上构建镜像、执行数据库迁移、启动 API 与 Worker，并等待远端健康检查通过。可用 `LEARNING_DEPLOY_HOST`、`LEARNING_DEPLOY_USER` 和 `LEARNING_DEPLOY_DIR` 覆盖默认目标；原 `VOA_*` 部署变量暂时作为兼容别名保留。
 
 远端 `.env` 至少设置测试环境发布令牌与媒体数据盘：
 

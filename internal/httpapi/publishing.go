@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/oldj/voa-learning-app/backend/internal/publishing"
+	"github.com/oldj/english-learning/backend/internal/publishing"
 )
 
 const maxPublicationBytes = int64(260 << 20)

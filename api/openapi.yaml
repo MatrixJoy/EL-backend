@@ -1,8 +1,8 @@
 openapi: 3.1.0
 info:
-  title: VOA Learning App API
+  title: English Learning App API
   version: 0.2.0
-  description: Anonymous-first mobile API with VOA Learning English attribution.
+  description: Anonymous-first mobile API with source attribution on every published item.
 servers:
   - url: /api/v1
 paths:

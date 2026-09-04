@@ -12,8 +12,8 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/oldj/voa-learning-app/backend/internal/ingestion/voa"
-	"github.com/oldj/voa-learning-app/backend/internal/repository/dbgen"
+	"github.com/oldj/english-learning/backend/internal/ingestion/voa"
+	"github.com/oldj/english-learning/backend/internal/repository/dbgen"
 )
 
 const maxSitemapBytes int64 = 20 << 20

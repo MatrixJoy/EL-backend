@@ -1,4 +1,4 @@
-module github.com/oldj/voa-learning-app/backend
+module github.com/oldj/english-learning/backend
 
 go 1.25.0
 

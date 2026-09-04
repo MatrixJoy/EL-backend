@@ -14,8 +14,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/oldj/voa-learning-app/backend/internal/identity"
-	"github.com/oldj/voa-learning-app/backend/internal/repository/dbgen"
+	"github.com/oldj/english-learning/backend/internal/identity"
+	"github.com/oldj/english-learning/backend/internal/repository/dbgen"
 )
 
 type HTTPFakeAppleVerifier struct{}

@@ -15,8 +15,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/oldj/voa-learning-app/backend/internal/platform/objectstore"
-	"github.com/oldj/voa-learning-app/backend/internal/repository/dbgen"
+	"github.com/oldj/english-learning/backend/internal/platform/objectstore"
+	"github.com/oldj/english-learning/backend/internal/repository/dbgen"
 )
 
 var requestCount atomic.Uint64
@@ -52,7 +52,7 @@ func (h publicHandlers) home(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "publishedAt": nullableTime(row.PublishedAt), "revision": row.Revision})
+		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "revision": row.Revision})
 	}
 	w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"sections": []any{map[string]any{"id": "latest", "title": "Latest", "items": items}}}})
@@ -79,7 +79,7 @@ func (h publicHandlers) categoryContents(w http.ResponseWriter, r *http.Request)
 	}
 	items := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "revision": row.Revision})
+		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "revision": row.Revision})
 	}
 	writeJSON(w, 200, map[string]any{"data": items})
 }
@@ -118,7 +118,7 @@ func (h publicHandlers) contents(w http.ResponseWriter, r *http.Request) {
 	items := make([]map[string]any, 0, len(rows))
 	next := ""
 	for _, row := range rows {
-		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "publishedAt": nullableTime(row.PublishedAt), "revision": row.Revision})
+		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "revision": row.Revision})
 	}
 	if len(rows) == int(params.PageLimit) {
 		last := rows[len(rows)-1]
@@ -179,7 +179,7 @@ func (h publicHandlers) search(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "publishedAt": nullableTime(row.PublishedAt), "revision": row.Revision})
+		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "revision": row.Revision})
 	}
 	writeJSON(w, 200, map[string]any{"data": items})
 }
@@ -243,7 +243,7 @@ func (h publicHandlers) seriesDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	contentItems := make([]map[string]any, 0, len(items))
 	for _, row := range items {
-		contentItems = append(contentItems, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "revision": row.Revision, "position": row.Position})
+		contentItems = append(contentItems, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "revision": row.Revision, "position": row.Position})
 	}
 	writeJSON(w, 200, map[string]any{"data": map[string]any{"series": map[string]any{"id": series.ID, "slug": series.Slug, "title": series.Title, "description": textValue(series.Description), "level": textValue(series.Level)}, "items": contentItems}})
 }

@@ -49,6 +49,12 @@ const getPublishedContent = `-- name: GetPublishedContent :one
 SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, s.canonical_url
 FROM contents c JOIN source_items s ON s.id = c.source_item_id
 WHERE c.id = $1 AND c.status = 'published'
+  AND EXISTS (
+    SELECT 1 FROM content_assets ca
+    JOIN assets a ON a.id = ca.asset_id
+    WHERE ca.content_id = c.id AND a.kind = 'audio'
+      AND a.delivery_policy = 'managed_cache' AND a.availability = 'available'
+  )
 `
 
 type GetPublishedContentRow struct {
@@ -103,7 +109,16 @@ func (q *Queries) GetPublishedContent(ctx context.Context, id uuid.UUID) (GetPub
 }
 
 const getSeries = `-- name: GetSeries :one
-SELECT id, slug, title, description, level, source_item_id, status, created_at, updated_at FROM series WHERE id = $1 AND status = 'active'
+SELECT s.id, s.slug, s.title, s.description, s.level, s.source_item_id, s.status, s.created_at, s.updated_at FROM series s
+WHERE s.id = $1 AND s.status = 'active'
+  AND EXISTS (
+    SELECT 1 FROM content_series cs
+    JOIN contents c ON c.id = cs.content_id
+    JOIN content_assets ca ON ca.content_id = c.id
+    JOIN assets a ON a.id = ca.asset_id
+    WHERE cs.series_id = s.id AND c.status = 'published' AND a.kind = 'audio'
+      AND a.delivery_policy = 'managed_cache' AND a.availability = 'available'
+  )
 `
 
 func (q *Queries) GetSeries(ctx context.Context, id uuid.UUID) (Series, error) {
@@ -156,7 +171,17 @@ func (q *Queries) LinkContentSeries(ctx context.Context, arg LinkContentSeriesPa
 }
 
 const listCategories = `-- name: ListCategories :many
-SELECT id, slug, name, kind, parent_id, sort_order, status FROM categories WHERE status = 'active' ORDER BY sort_order, name
+SELECT cat.id, cat.slug, cat.name, cat.kind, cat.parent_id, cat.sort_order, cat.status FROM categories cat
+WHERE cat.status = 'active'
+  AND EXISTS (
+    SELECT 1 FROM content_categories cc
+    JOIN contents c ON c.id = cc.content_id
+    JOIN content_assets ca ON ca.content_id = c.id
+    JOIN assets a ON a.id = ca.asset_id
+    WHERE cc.category_id = cat.id AND c.status = 'published'
+      AND a.kind = 'audio' AND a.delivery_policy = 'managed_cache' AND a.availability = 'available'
+  )
+ORDER BY cat.sort_order, cat.name
 `
 
 func (q *Queries) ListCategories(ctx context.Context) ([]Category, error) {
@@ -194,6 +219,12 @@ JOIN categories cat ON cat.id = cc.category_id
 JOIN contents c ON c.id = cc.content_id
 JOIN source_items s ON s.id = c.source_item_id
 WHERE cat.slug = $1 AND c.status = 'published'
+  AND EXISTS (
+    SELECT 1 FROM content_assets playable_ca
+    JOIN assets playable ON playable.id = playable_ca.asset_id
+    WHERE playable_ca.content_id = c.id AND playable.kind = 'audio'
+      AND playable.delivery_policy = 'managed_cache' AND playable.availability = 'available'
+  )
 ORDER BY c.published_at DESC NULLS LAST, c.id DESC
 LIMIT $2
 `
@@ -339,7 +370,16 @@ func (q *Queries) ListContentAssets(ctx context.Context, contentID uuid.UUID) ([
 }
 
 const listPublishEventsAfter = `-- name: ListPublishEventsAfter :many
-SELECT sequence, entity_type, entity_id, operation, revision, published_at FROM publish_events WHERE sequence > $1 ORDER BY sequence LIMIT $2
+SELECT pe.sequence, pe.entity_type, pe.entity_id, pe.operation, pe.revision, pe.published_at FROM publish_events pe
+WHERE pe.sequence > $1 AND pe.entity_type = 'content'
+  AND EXISTS (
+    SELECT 1 FROM contents c
+    JOIN content_assets ca ON ca.content_id = c.id
+    JOIN assets a ON a.id = ca.asset_id
+    WHERE c.id = pe.entity_id AND c.status = 'published' AND a.kind = 'audio'
+      AND a.delivery_policy = 'managed_cache' AND a.availability = 'available'
+  )
+ORDER BY pe.sequence LIMIT $2
 `
 
 type ListPublishEventsAfterParams struct {
@@ -378,6 +418,12 @@ const listPublishedContents = `-- name: ListPublishedContents :many
 SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, s.canonical_url
 FROM contents c JOIN source_items s ON s.id = c.source_item_id
 WHERE c.status = 'published'
+  AND EXISTS (
+    SELECT 1 FROM content_assets ca
+    JOIN assets a ON a.id = ca.asset_id
+    WHERE ca.content_id = c.id AND a.kind = 'audio'
+      AND a.delivery_policy = 'managed_cache' AND a.availability = 'available'
+  )
   AND ($1::timestamptz IS NULL
        OR (c.published_at, c.id) < ($1::timestamptz, $2::uuid))
 ORDER BY c.published_at DESC NULLS LAST, c.id DESC
@@ -455,7 +501,17 @@ func (q *Queries) ListPublishedContents(ctx context.Context, arg ListPublishedCo
 }
 
 const listSeries = `-- name: ListSeries :many
-SELECT id, slug, title, description, level, source_item_id, status, created_at, updated_at FROM series WHERE status = 'active' ORDER BY title LIMIT $1
+SELECT s.id, s.slug, s.title, s.description, s.level, s.source_item_id, s.status, s.created_at, s.updated_at FROM series s
+WHERE s.status = 'active'
+  AND EXISTS (
+    SELECT 1 FROM content_series cs
+    JOIN contents c ON c.id = cs.content_id
+    JOIN content_assets ca ON ca.content_id = c.id
+    JOIN assets a ON a.id = ca.asset_id
+    WHERE cs.series_id = s.id AND c.status = 'published' AND a.kind = 'audio'
+      AND a.delivery_policy = 'managed_cache' AND a.availability = 'available'
+  )
+ORDER BY s.title LIMIT $1
 `
 
 func (q *Queries) ListSeries(ctx context.Context, limit int32) ([]Series, error) {
@@ -494,6 +550,12 @@ FROM content_series cs
 JOIN contents c ON c.id = cs.content_id
 JOIN source_items s ON s.id = c.source_item_id
 WHERE cs.series_id = $1 AND c.status = 'published'
+  AND EXISTS (
+    SELECT 1 FROM content_assets playable_ca
+    JOIN assets playable ON playable.id = playable_ca.asset_id
+    WHERE playable_ca.content_id = c.id AND playable.kind = 'audio'
+      AND playable.delivery_policy = 'managed_cache' AND playable.availability = 'available'
+  )
 ORDER BY cs.position, c.published_at, c.id
 `
 
@@ -568,6 +630,12 @@ SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.pu
        ts_rank(to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.summary, '')), websearch_to_tsquery('english', $1)) AS rank
 FROM contents c JOIN source_items s ON s.id = c.source_item_id
 WHERE c.status = 'published'
+  AND EXISTS (
+    SELECT 1 FROM content_assets ca
+    JOIN assets a ON a.id = ca.asset_id
+    WHERE ca.content_id = c.id AND a.kind = 'audio'
+      AND a.delivery_policy = 'managed_cache' AND a.availability = 'available'
+  )
   AND to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.summary, '')) @@ websearch_to_tsquery('english', $1)
 ORDER BY rank DESC, c.published_at DESC NULLS LAST
 LIMIT $2

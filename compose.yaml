@@ -11,7 +11,7 @@ x-app-environment: &app-environment
   VOA_OBJECT_ACCESS_KEY: minioadmin
   VOA_OBJECT_SECRET_KEY: minioadmin
   VOA_OBJECT_USE_TLS: "false"
-  VOA_USER_AGENT: VOALearningApp/0.1 (+https://example.com/contact)
+  VOA_USER_AGENT: EnglishLearningBackend/0.1 (+https://example.com/contact)
   VOA_CRAWL_DELAY: 1500ms
   VOA_CMS_PUBLISH_TOKEN: ${VOA_CMS_PUBLISH_TOKEN:-}
 
@@ -70,19 +70,6 @@ services:
     environment: *app-environment
     ports:
       - "8080:8080"
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_started
-
-  worker:
-    image: voa-learning-backend:local
-    restart: unless-stopped
-    entrypoint: ["/usr/local/bin/worker"]
-    environment: *app-environment
     depends_on:
       migrate:
         condition: service_completed_successfully

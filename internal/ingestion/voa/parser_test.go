@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/oldj/voa-learning-app/backend/internal/catalog"
+	"github.com/oldj/english-learning/backend/internal/catalog"
 )
 
 func TestArticleParserParsesLessonFixture(t *testing.T) {

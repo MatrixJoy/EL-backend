@@ -17,7 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/oldj/voa-learning-app/backend/internal/platform/objectstore"
+	"github.com/oldj/english-learning/backend/internal/platform/objectstore"
 )
 
 const maxAudioBytes = int64(250 << 20)
@@ -60,6 +60,7 @@ type Document struct {
 	SourceContentID string      `json:"source_content_id"`
 	Source          string      `json:"source"`
 	SourceURL       string      `json:"source_url"`
+	Attribution     string      `json:"attribution"`
 	ManifestETag    string      `json:"manifest_etag"`
 	Title           string      `json:"title"`
 	Description     string      `json:"description"`
@@ -151,7 +152,8 @@ func (s *Service) Publish(ctx context.Context, idempotencyKey string, document D
 	publishedAt := parseTime(document.PublishedAt)
 	var contentID uuid.UUID
 	var revision int32
-	err = tx.QueryRow(ctx, `INSERT INTO contents(source_item_id,slug,type,title,summary,level,published_at,duration_seconds,body_blocks,transcript_blocks,metadata,rights_status,attribution,status,source_updated_at) VALUES($1,$2,'article',$3,$4,$5,$6,$7,$8,$9,$10,'review_required','VOA Learning English','published',$6) ON CONFLICT(source_item_id) DO UPDATE SET title=excluded.title,summary=excluded.summary,level=excluded.level,published_at=excluded.published_at,duration_seconds=excluded.duration_seconds,body_blocks=excluded.body_blocks,transcript_blocks=excluded.transcript_blocks,metadata=excluded.metadata,status='published',revision=contents.revision+1,source_updated_at=excluded.source_updated_at,updated_at=now() RETURNING id,revision`, sourceID, contentSlug(document), document.Title, document.Description, nullableString(document.Level), publishedAt, (document.Timeline.DurationMS+999)/1000, body, transcript, metadata).Scan(&contentID, &revision)
+	attribution := sourceAttribution(document)
+	err = tx.QueryRow(ctx, `INSERT INTO contents(source_item_id,slug,type,title,summary,level,published_at,duration_seconds,body_blocks,transcript_blocks,metadata,rights_status,attribution,status,source_updated_at) VALUES($1,$2,'article',$3,$4,$5,$6,$7,$8,$9,$10,'review_required',$11,'published',$6) ON CONFLICT(source_item_id) DO UPDATE SET title=excluded.title,summary=excluded.summary,level=excluded.level,published_at=excluded.published_at,duration_seconds=excluded.duration_seconds,body_blocks=excluded.body_blocks,transcript_blocks=excluded.transcript_blocks,metadata=excluded.metadata,attribution=excluded.attribution,status='published',revision=contents.revision+1,source_updated_at=excluded.source_updated_at,updated_at=now() RETURNING id,revision`, sourceID, contentSlug(document), document.Title, document.Description, nullableString(document.Level), publishedAt, (document.Timeline.DurationMS+999)/1000, body, transcript, metadata, attribution).Scan(&contentID, &revision)
 	if err != nil {
 		return Result{}, err
 	}
@@ -166,7 +168,7 @@ func (s *Service) Publish(ctx context.Context, idempotencyKey string, document D
 	}
 	var assetID uuid.UUID
 	sourceURL := fmt.Sprintf("cms://%s/%s/audio", safeSegment(document.Source), safeSegment(document.SourceContentID))
-	err = tx.QueryRow(ctx, `INSERT INTO assets(kind,source_url,source_host,mime_type,byte_size,duration_seconds,quality_label,checksum,delivery_policy,rights_status,attribution,object_key,availability) VALUES('audio',$1,'cms',$2,$3,$4,'original',$5,'managed_cache','review_required','VOA Learning English',$6,'available') ON CONFLICT(source_url) DO UPDATE SET mime_type=excluded.mime_type,byte_size=excluded.byte_size,duration_seconds=excluded.duration_seconds,checksum=excluded.checksum,delivery_policy='managed_cache',object_key=excluded.object_key,availability='available',updated_at=now() RETURNING id`, sourceURL, document.Audio.MIMEType, document.Audio.ByteSize, (document.Timeline.DurationMS+999)/1000, document.Audio.SHA256, objectKey).Scan(&assetID)
+	err = tx.QueryRow(ctx, `INSERT INTO assets(kind,source_url,source_host,mime_type,byte_size,duration_seconds,quality_label,checksum,delivery_policy,rights_status,attribution,object_key,availability) VALUES('audio',$1,'cms',$2,$3,$4,'original',$5,'managed_cache','review_required',$6,$7,'available') ON CONFLICT(source_url) DO UPDATE SET mime_type=excluded.mime_type,byte_size=excluded.byte_size,duration_seconds=excluded.duration_seconds,checksum=excluded.checksum,delivery_policy='managed_cache',attribution=excluded.attribution,object_key=excluded.object_key,availability='available',updated_at=now() RETURNING id`, sourceURL, document.Audio.MIMEType, document.Audio.ByteSize, (document.Timeline.DurationMS+999)/1000, document.Audio.SHA256, attribution, objectKey).Scan(&assetID)
 	if err != nil {
 		return Result{}, err
 	}
@@ -272,6 +274,16 @@ func linkCategory(ctx context.Context, tx pgx.Tx, contentID uuid.UUID, slug, nam
 }
 
 func contentSlug(d Document) string { return slugify(d.Source + "-" + d.SourceContentID) }
+
+func sourceAttribution(d Document) string {
+	if value := strings.TrimSpace(d.Attribution); value != "" {
+		return value
+	}
+	if d.Source == "voa-learning-english" {
+		return "VOA Learning English"
+	}
+	return d.Source
+}
 
 func slugify(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
