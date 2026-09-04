@@ -9,6 +9,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/oldj/voa-learning-app/backend/internal/identity"
+	"github.com/oldj/voa-learning-app/backend/internal/platform/objectstore"
 	"github.com/oldj/voa-learning-app/backend/internal/repository/dbgen"
 )
 
@@ -17,9 +18,12 @@ type BuildInfo struct {
 }
 
 type Dependencies struct {
-	Queries     *dbgen.Queries
-	MediaClient *http.Client
-	Identity    *identity.Service
+	Queries      *dbgen.Queries
+	MediaClient  *http.Client
+	MediaStore   *objectstore.Store
+	Identity     *identity.Service
+	Publisher    publicationPublisher
+	PublishToken string
 }
 
 func NewRouter(logger *slog.Logger, build BuildInfo, dependencies ...Dependencies) http.Handler {
@@ -63,6 +67,9 @@ func NewRouter(logger *slog.Logger, build BuildInfo, dependencies ...Dependencie
 			mountIdentityRoutes(r, deps.Identity)
 		}
 	})
+	if deps.Publisher != nil && deps.PublishToken != "" {
+		mountPublishingRoutes(router, deps.Publisher, deps.PublishToken)
+	}
 	router.Get("/metrics", metricsHandler)
 
 	return router

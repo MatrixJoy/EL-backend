@@ -14,6 +14,8 @@ import (
 	"github.com/oldj/voa-learning-app/backend/internal/config"
 	"github.com/oldj/voa-learning-app/backend/internal/httpapi"
 	"github.com/oldj/voa-learning-app/backend/internal/identity"
+	"github.com/oldj/voa-learning-app/backend/internal/platform/objectstore"
+	"github.com/oldj/voa-learning-app/backend/internal/publishing"
 	"github.com/oldj/voa-learning-app/backend/internal/repository/dbgen"
 )
 
@@ -36,10 +38,20 @@ func main() {
 		os.Exit(1)
 	}
 	mediaClient := httpapi.NewMediaClient(2 * time.Minute)
+	mediaStore, err := objectstore.New(cfg.ObjectEndpoint, cfg.ObjectAccessKey, cfg.ObjectSecretKey, cfg.PublishedBucket, cfg.ObjectUseTLS)
+	if err != nil {
+		logger.Error("create media store", "error", err)
+		os.Exit(1)
+	}
+	if err = ensureObjectStore(context.Background(), mediaStore); err != nil {
+		logger.Error("prepare media store", "error", err)
+		os.Exit(1)
+	}
 	identityService := identity.NewService(pool, identity.NewAppleJWTVerifier(cfg.AppleClientID, nil), cfg.SessionTTL)
+	publicationService := publishing.NewService(pool, mediaStore, cfg.Environment)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(logger, httpapi.BuildInfo{Version: "dev"}, httpapi.Dependencies{Queries: dbgen.New(pool), MediaClient: mediaClient, Identity: identityService}),
+		Handler:           httpapi.NewRouter(logger, httpapi.BuildInfo{Version: "dev"}, httpapi.Dependencies{Queries: dbgen.New(pool), MediaClient: mediaClient, MediaStore: mediaStore, Identity: identityService, Publisher: publicationService, PublishToken: cfg.CMSPublishToken}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 	}
 
@@ -62,4 +74,15 @@ func main() {
 		os.Exit(1)
 	}
 	logger.Info("api stopped")
+}
+
+func ensureObjectStore(ctx context.Context, store *objectstore.Store) error {
+	var err error
+	for attempt := 0; attempt < 20; attempt++ {
+		if err = store.EnsureBucket(ctx); err == nil {
+			return nil
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	return err
 }

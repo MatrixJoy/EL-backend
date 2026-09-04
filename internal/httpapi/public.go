@@ -15,13 +15,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/oldj/voa-learning-app/backend/internal/platform/objectstore"
 	"github.com/oldj/voa-learning-app/backend/internal/repository/dbgen"
 )
 
 var requestCount atomic.Uint64
 
 func mountPublicRoutes(r chi.Router, deps Dependencies) {
-	h := publicHandlers{queries: deps.Queries, mediaClient: deps.MediaClient}
+	h := publicHandlers{queries: deps.Queries, mediaClient: deps.MediaClient, mediaStore: deps.MediaStore}
 	r.Get("/home", h.home)
 	r.Get("/categories", h.categories)
 	r.Get("/categories/{slug}/contents", h.categoryContents)
@@ -38,6 +39,7 @@ func mountPublicRoutes(r chi.Router, deps Dependencies) {
 type publicHandlers struct {
 	queries     *dbgen.Queries
 	mediaClient *http.Client
+	mediaStore  *objectstore.Store
 }
 
 func (h publicHandlers) home(w http.ResponseWriter, r *http.Request) {
@@ -153,7 +155,15 @@ func (h publicHandlers) content(w http.ResponseWriter, r *http.Request) {
 	if len(row.BodyBlocks) == 0 || string(row.BodyBlocks) == "null" {
 		bodyBlocks = json.RawMessage("[]")
 	}
-	writeJSON(w, 200, map[string]any{"data": map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "publishedAt": nullableTime(row.PublishedAt), "bodyBlocks": bodyBlocks, "assets": assetDTO, "source": map[string]any{"name": row.Attribution, "canonicalUrl": row.CanonicalUrl}, "revision": row.Revision}})
+	transcriptBlocks := json.RawMessage(row.TranscriptBlocks)
+	if len(row.TranscriptBlocks) == 0 || string(row.TranscriptBlocks) == "null" {
+		transcriptBlocks = json.RawMessage("[]")
+	}
+	metadata := json.RawMessage(row.Metadata)
+	if len(row.Metadata) == 0 || string(row.Metadata) == "null" {
+		metadata = json.RawMessage("{}")
+	}
+	writeJSON(w, 200, map[string]any{"data": map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "bodyBlocks": bodyBlocks, "transcriptBlocks": transcriptBlocks, "metadata": metadata, "assets": assetDTO, "source": map[string]any{"name": row.Attribution, "canonicalUrl": row.CanonicalUrl}, "revision": row.Revision}})
 }
 
 func (h publicHandlers) search(w http.ResponseWriter, r *http.Request) {
@@ -247,6 +257,24 @@ func (h publicHandlers) media(w http.ResponseWriter, r *http.Request) {
 	asset, err := h.queries.GetDeliverableAsset(r.Context(), id)
 	if err != nil {
 		writeError(w, 404, "MEDIA_UNAVAILABLE", r)
+		return
+	}
+	if asset.DeliveryPolicy == dbgen.DeliveryPolicyManagedCache && asset.ObjectKey.Valid && h.mediaStore != nil {
+		object, info, openErr := h.mediaStore.Open(r.Context(), asset.ObjectKey.String)
+		if openErr != nil {
+			writeError(w, 502, "MEDIA_UNAVAILABLE", r)
+			return
+		}
+		defer object.Close()
+		contentType := "audio/mpeg"
+		if asset.MimeType.Valid {
+			contentType = asset.MimeType.String
+		} else if info.ContentType != "" {
+			contentType = info.ContentType
+		}
+		w.Header().Set("Content-Type", contentType)
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		http.ServeContent(w, r, asset.ID.String()+".mp3", info.LastModified, object)
 		return
 	}
 	if err := proxyMedia(w, r, asset.SourceUrl, h.mediaClient); err != nil {

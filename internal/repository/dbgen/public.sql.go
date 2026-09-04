@@ -15,8 +15,8 @@ import (
 const getDeliverableAsset = `-- name: GetDeliverableAsset :one
 SELECT id, kind, source_url, source_host, mime_type, byte_size, duration_seconds, width, height, quality_label, checksum, delivery_policy, rights_status, attribution, object_key, availability, created_at, updated_at FROM assets
 WHERE id = $1 AND availability = 'available'
-  AND rights_status = 'public_domain_verified'
-  AND delivery_policy = 'stream_proxy'
+  AND ((rights_status = 'public_domain_verified' AND delivery_policy = 'stream_proxy')
+       OR (delivery_policy = 'managed_cache' AND object_key IS NOT NULL))
 `
 
 func (q *Queries) GetDeliverableAsset(ctx context.Context, id uuid.UUID) (Asset, error) {

@@ -46,8 +46,8 @@ SELECT * FROM publish_events WHERE sequence > $1 ORDER BY sequence LIMIT $2;
 -- name: GetDeliverableAsset :one
 SELECT * FROM assets
 WHERE id = $1 AND availability = 'available'
-  AND rights_status = 'public_domain_verified'
-  AND delivery_policy = 'stream_proxy';
+  AND ((rights_status = 'public_domain_verified' AND delivery_policy = 'stream_proxy')
+       OR (delivery_policy = 'managed_cache' AND object_key IS NOT NULL));
 
 -- name: ListSeries :many
 SELECT * FROM series WHERE status = 'active' ORDER BY title LIMIT $1;
