@@ -91,6 +91,44 @@ paths:
       security: [{bearerAuth: []}]
       parameters: [{name: cursor, in: query, schema: {type: string}}]
       responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "401": {$ref: "#/components/responses/Error"}}
+  /me/retell-attempts:
+    get:
+      operationId: listRetellAttempts
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: contentId, in: query, schema: {type: string, format: uuid}}
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "401": {$ref: "#/components/responses/Error"}}
+  /me/retell-attempts/{attemptId}:
+    parameters:
+      - {name: attemptId, in: path, required: true, schema: {type: string, format: uuid}}
+    put:
+      operationId: uploadRetellAttempt
+      security: [{bearerAuth: []}]
+      parameters:
+        - {name: X-Content-ID, in: header, required: true, schema: {type: string, format: uuid}}
+        - {name: X-Duration-Milliseconds, in: header, required: true, schema: {type: integer, minimum: 0}}
+        - {name: X-Created-At, in: header, required: true, schema: {type: string, format: date-time}}
+      requestBody:
+        required: true
+        content:
+          audio/mp4: {schema: {type: string, format: binary}}
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "401": {$ref: "#/components/responses/Error"}, "413": {$ref: "#/components/responses/Error"}}
+    delete:
+      operationId: deleteRetellAttempt
+      security: [{bearerAuth: []}]
+      responses: {"204": {description: Retelling deleted}, "401": {$ref: "#/components/responses/Error"}, "404": {$ref: "#/components/responses/Error"}}
+  /me/retell-attempts/{attemptId}/audio:
+    parameters:
+      - {name: attemptId, in: path, required: true, schema: {type: string, format: uuid}}
+      - {name: Range, in: header, schema: {type: string, pattern: '^bytes='}}
+    get:
+      operationId: downloadRetellAudio
+      security: [{bearerAuth: []}]
+      responses: {"200": {description: Complete private recording}, "206": {description: Partial private recording}, "401": {$ref: "#/components/responses/Error"}, "404": {$ref: "#/components/responses/Error"}}
+    head:
+      operationId: headRetellAudio
+      security: [{bearerAuth: []}]
+      responses: {"200": {description: Private recording headers}, "401": {$ref: "#/components/responses/Error"}, "404": {$ref: "#/components/responses/Error"}}
 components:
   securitySchemes:
     bearerAuth: {type: http, scheme: bearer}

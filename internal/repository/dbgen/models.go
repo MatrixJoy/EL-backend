@@ -338,6 +338,18 @@ type PublishEvent struct {
 	PublishedAt pgtype.Timestamptz `json:"published_at"`
 }
 
+type RetellAttempt struct {
+	UserID               uuid.UUID          `json:"user_id"`
+	ID                   uuid.UUID          `json:"id"`
+	ContentID            uuid.UUID          `json:"content_id"`
+	ObjectKey            string             `json:"object_key"`
+	DurationMilliseconds int32              `json:"duration_milliseconds"`
+	ByteSize             int64              `json:"byte_size"`
+	ContentType          string             `json:"content_type"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+	ServerUpdatedAt      pgtype.Timestamptz `json:"server_updated_at"`
+}
+
 type Series struct {
 	ID           uuid.UUID          `json:"id"`
 	Slug         string             `json:"slug"`

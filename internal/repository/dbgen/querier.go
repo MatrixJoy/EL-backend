@@ -16,10 +16,12 @@ type Querier interface {
 	CreateSourceSnapshot(ctx context.Context, arg CreateSourceSnapshotParams) (SourceSnapshot, error)
 	CreateUserEvent(ctx context.Context, arg CreateUserEventParams) (int64, error)
 	DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) error
+	DeleteRetellAttempt(ctx context.Context, arg DeleteRetellAttemptParams) (string, error)
 	DeleteSession(ctx context.Context, tokenHash []byte) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	GetDeliverableAsset(ctx context.Context, id uuid.UUID) (Asset, error)
 	GetPublishedContent(ctx context.Context, id uuid.UUID) (GetPublishedContentRow, error)
+	GetRetellAttempt(ctx context.Context, arg GetRetellAttemptParams) (RetellAttempt, error)
 	GetSeries(ctx context.Context, id uuid.UUID) (Series, error)
 	GetSourceItem(ctx context.Context, id uuid.UUID) (SourceItem, error)
 	GetUserBySessionHash(ctx context.Context, tokenHash []byte) (User, error)
@@ -34,6 +36,7 @@ type Querier interface {
 	ListProgress(ctx context.Context, userID uuid.UUID) ([]LearningProgress, error)
 	ListPublishEventsAfter(ctx context.Context, arg ListPublishEventsAfterParams) ([]PublishEvent, error)
 	ListPublishedContents(ctx context.Context, arg ListPublishedContentsParams) ([]ListPublishedContentsRow, error)
+	ListRetellAttempts(ctx context.Context, arg ListRetellAttemptsParams) ([]RetellAttempt, error)
 	ListSeries(ctx context.Context, limit int32) ([]Series, error)
 	ListSeriesContents(ctx context.Context, seriesID uuid.UUID) ([]ListSeriesContentsRow, error)
 	ListSourceItemsDueForFetch(ctx context.Context, limit int32) ([]SourceItem, error)
@@ -48,6 +51,7 @@ type Querier interface {
 	UpsertBookmark(ctx context.Context, arg UpsertBookmarkParams) error
 	UpsertContent(ctx context.Context, arg UpsertContentParams) (Content, error)
 	UpsertProgress(ctx context.Context, arg UpsertProgressParams) (LearningProgress, error)
+	UpsertRetellAttempt(ctx context.Context, arg UpsertRetellAttemptParams) (RetellAttempt, error)
 	UpsertSeries(ctx context.Context, arg UpsertSeriesParams) (Series, error)
 	UpsertSourceItem(ctx context.Context, arg UpsertSourceItemParams) (SourceItem, error)
 }

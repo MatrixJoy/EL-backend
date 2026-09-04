@@ -77,3 +77,10 @@ func (s *Store) Open(ctx context.Context, key string) (ReadSeekCloser, ObjectInf
 	}
 	return object, ObjectInfo{Size: stat.Size, LastModified: stat.LastModified, ContentType: stat.ContentType}, nil
 }
+
+func (s *Store) Delete(ctx context.Context, key string) error {
+	if err := s.client.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{}); err != nil {
+		return fmt.Errorf("delete object: %w", err)
+	}
+	return nil
+}

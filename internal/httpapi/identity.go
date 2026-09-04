@@ -16,7 +16,7 @@ import (
 
 type userContextKey struct{}
 
-func mountIdentityRoutes(r chi.Router, service *identity.Service) {
+func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore recordingObjectStore) {
 	r.Post("/auth/apple", func(w http.ResponseWriter, request *http.Request) {
 		var body struct {
 			IdentityToken string                  `json:"identityToken"`
@@ -36,6 +36,9 @@ func mountIdentityRoutes(r chi.Router, service *identity.Service) {
 	})
 	r.Group(func(private chi.Router) {
 		private.Use(authenticationMiddleware(service))
+		if userMediaStore != nil {
+			mountRetellRoutes(private, service, userMediaStore)
+		}
 		private.Get("/me", func(w http.ResponseWriter, r *http.Request) {
 			user := currentUser(r)
 			bookmarks, _ := service.Queries().ListBookmarks(r.Context(), user.ID)
@@ -100,6 +103,19 @@ func mountIdentityRoutes(r chi.Router, service *identity.Service) {
 			writeJSON(w, 200, map[string]any{"data": map[string]any{"changes": events, "nextCursor": base64.RawURLEncoding.EncodeToString([]byte(strconv.FormatInt(next, 10))), "hasMore": len(events) == 100}})
 		})
 		private.Delete("/me", func(w http.ResponseWriter, r *http.Request) {
+			if userMediaStore != nil {
+				attempts, err := service.Queries().ListRetellAttempts(r.Context(), dbgen.ListRetellAttemptsParams{UserID: currentUser(r).ID})
+				if err != nil {
+					writeError(w, 500, "INTERNAL_ERROR", r)
+					return
+				}
+				for _, attempt := range attempts {
+					if err = userMediaStore.Delete(r.Context(), attempt.ObjectKey); err != nil {
+						writeError(w, 502, "MEDIA_STORE_UNAVAILABLE", r)
+						return
+					}
+				}
+			}
 			if service.DeleteUser(r.Context(), currentUser(r).ID) != nil {
 				writeError(w, 500, "INTERNAL_ERROR", r)
 				return

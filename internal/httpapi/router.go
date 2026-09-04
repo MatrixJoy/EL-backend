@@ -18,12 +18,13 @@ type BuildInfo struct {
 }
 
 type Dependencies struct {
-	Queries      *dbgen.Queries
-	MediaClient  *http.Client
-	MediaStore   *objectstore.Store
-	Identity     *identity.Service
-	Publisher    publicationPublisher
-	PublishToken string
+	Queries        *dbgen.Queries
+	MediaClient    *http.Client
+	MediaStore     *objectstore.Store
+	UserMediaStore recordingObjectStore
+	Identity       *identity.Service
+	Publisher      publicationPublisher
+	PublishToken   string
 }
 
 const (
@@ -75,7 +76,7 @@ func NewRouter(logger *slog.Logger, build BuildInfo, dependencies ...Dependencie
 		if deps.Identity != nil {
 			r.Group(func(account chi.Router) {
 				account.Use(newIPRateLimiter(accountRequestsPerMinute, accountRequestBurst).middleware)
-				mountIdentityRoutes(account, deps.Identity)
+				mountIdentityRoutes(account, deps.Identity, deps.UserMediaStore)
 			})
 		}
 	})

@@ -74,6 +74,23 @@ func (q *Queries) DeleteBookmark(ctx context.Context, arg DeleteBookmarkParams) 
 	return err
 }
 
+const deleteRetellAttempt = `-- name: DeleteRetellAttempt :one
+DELETE FROM retell_attempts WHERE user_id = $1 AND id = $2
+RETURNING object_key
+`
+
+type DeleteRetellAttemptParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	ID     uuid.UUID `json:"id"`
+}
+
+func (q *Queries) DeleteRetellAttempt(ctx context.Context, arg DeleteRetellAttemptParams) (string, error) {
+	row := q.db.QueryRow(ctx, deleteRetellAttempt, arg.UserID, arg.ID)
+	var object_key string
+	err := row.Scan(&object_key)
+	return object_key, err
+}
+
 const deleteSession = `-- name: DeleteSession :exec
 DELETE FROM sessions WHERE token_hash = $1
 `
@@ -90,6 +107,32 @@ DELETE FROM users WHERE id = $1
 func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, deleteUser, id)
 	return err
+}
+
+const getRetellAttempt = `-- name: GetRetellAttempt :one
+SELECT user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at, server_updated_at FROM retell_attempts WHERE user_id = $1 AND id = $2
+`
+
+type GetRetellAttemptParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	ID     uuid.UUID `json:"id"`
+}
+
+func (q *Queries) GetRetellAttempt(ctx context.Context, arg GetRetellAttemptParams) (RetellAttempt, error) {
+	row := q.db.QueryRow(ctx, getRetellAttempt, arg.UserID, arg.ID)
+	var i RetellAttempt
+	err := row.Scan(
+		&i.UserID,
+		&i.ID,
+		&i.ContentID,
+		&i.ObjectKey,
+		&i.DurationMilliseconds,
+		&i.ByteSize,
+		&i.ContentType,
+		&i.CreatedAt,
+		&i.ServerUpdatedAt,
+	)
+	return i, err
 }
 
 const getUserBySessionHash = `-- name: GetUserBySessionHash :one
@@ -160,6 +203,48 @@ func (q *Queries) ListProgress(ctx context.Context, userID uuid.UUID) ([]Learnin
 			&i.PositionSeconds,
 			&i.Completed,
 			&i.ClientUpdatedAt,
+			&i.ServerUpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRetellAttempts = `-- name: ListRetellAttempts :many
+SELECT user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at, server_updated_at FROM retell_attempts
+WHERE user_id = $1
+  AND ($2::uuid IS NULL OR content_id = $2)
+ORDER BY created_at DESC
+`
+
+type ListRetellAttemptsParams struct {
+	UserID    uuid.UUID   `json:"user_id"`
+	ContentID pgtype.UUID `json:"content_id"`
+}
+
+func (q *Queries) ListRetellAttempts(ctx context.Context, arg ListRetellAttemptsParams) ([]RetellAttempt, error) {
+	rows, err := q.db.Query(ctx, listRetellAttempts, arg.UserID, arg.ContentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RetellAttempt{}
+	for rows.Next() {
+		var i RetellAttempt
+		if err := rows.Scan(
+			&i.UserID,
+			&i.ID,
+			&i.ContentID,
+			&i.ObjectKey,
+			&i.DurationMilliseconds,
+			&i.ByteSize,
+			&i.ContentType,
+			&i.CreatedAt,
 			&i.ServerUpdatedAt,
 		); err != nil {
 			return nil, err
@@ -290,6 +375,58 @@ func (q *Queries) UpsertProgress(ctx context.Context, arg UpsertProgressParams) 
 		&i.PositionSeconds,
 		&i.Completed,
 		&i.ClientUpdatedAt,
+		&i.ServerUpdatedAt,
+	)
+	return i, err
+}
+
+const upsertRetellAttempt = `-- name: UpsertRetellAttempt :one
+INSERT INTO retell_attempts (
+    user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+ON CONFLICT (user_id, id) DO UPDATE
+SET content_id = EXCLUDED.content_id,
+    object_key = EXCLUDED.object_key,
+    duration_milliseconds = EXCLUDED.duration_milliseconds,
+    byte_size = EXCLUDED.byte_size,
+    content_type = EXCLUDED.content_type,
+    created_at = EXCLUDED.created_at,
+    server_updated_at = now()
+RETURNING user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at, server_updated_at
+`
+
+type UpsertRetellAttemptParams struct {
+	UserID               uuid.UUID          `json:"user_id"`
+	ID                   uuid.UUID          `json:"id"`
+	ContentID            uuid.UUID          `json:"content_id"`
+	ObjectKey            string             `json:"object_key"`
+	DurationMilliseconds int32              `json:"duration_milliseconds"`
+	ByteSize             int64              `json:"byte_size"`
+	ContentType          string             `json:"content_type"`
+	CreatedAt            pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) UpsertRetellAttempt(ctx context.Context, arg UpsertRetellAttemptParams) (RetellAttempt, error) {
+	row := q.db.QueryRow(ctx, upsertRetellAttempt,
+		arg.UserID,
+		arg.ID,
+		arg.ContentID,
+		arg.ObjectKey,
+		arg.DurationMilliseconds,
+		arg.ByteSize,
+		arg.ContentType,
+		arg.CreatedAt,
+	)
+	var i RetellAttempt
+	err := row.Scan(
+		&i.UserID,
+		&i.ID,
+		&i.ContentID,
+		&i.ObjectKey,
+		&i.DurationMilliseconds,
+		&i.ByteSize,
+		&i.ContentType,
+		&i.CreatedAt,
 		&i.ServerUpdatedAt,
 	)
 	return i, err

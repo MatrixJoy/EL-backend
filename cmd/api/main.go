@@ -47,11 +47,20 @@ func main() {
 		logger.Error("prepare media store", "error", err)
 		os.Exit(1)
 	}
+	userMediaStore, err := objectstore.New(cfg.ObjectEndpoint, cfg.ObjectAccessKey, cfg.ObjectSecretKey, cfg.UserMediaBucket, cfg.ObjectUseTLS)
+	if err != nil {
+		logger.Error("create user media store", "error", err)
+		os.Exit(1)
+	}
+	if err = ensureObjectStore(context.Background(), userMediaStore); err != nil {
+		logger.Error("prepare user media store", "error", err)
+		os.Exit(1)
+	}
 	identityService := identity.NewService(pool, identity.NewAppleJWTVerifier(cfg.AppleClientID, nil), cfg.SessionTTL)
 	publicationService := publishing.NewService(pool, mediaStore, cfg.Environment)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(logger, httpapi.BuildInfo{Version: "dev"}, httpapi.Dependencies{Queries: dbgen.New(pool), MediaClient: mediaClient, MediaStore: mediaStore, Identity: identityService, Publisher: publicationService, PublishToken: cfg.CMSPublishToken}),
+		Handler:           httpapi.NewRouter(logger, httpapi.BuildInfo{Version: "dev"}, httpapi.Dependencies{Queries: dbgen.New(pool), MediaClient: mediaClient, MediaStore: mediaStore, UserMediaStore: userMediaStore, Identity: identityService, Publisher: publicationService, PublishToken: cfg.CMSPublishToken}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 	}
 

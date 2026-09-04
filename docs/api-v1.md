@@ -32,6 +32,10 @@
 | PUT/DELETE | `/me/bookmarks/{contentId}` | 收藏/取消收藏 |
 | PUT | `/me/progress/{contentId}` | 幂等写学习进度 |
 | GET | `/me/sync?cursor=` | 用户数据增量同步 |
+| GET | `/me/retell-attempts?contentId=` | 获取当前用户的复述录音元数据 |
+| PUT | `/me/retell-attempts/{attemptId}` | 上传或幂等更新私有复述录音（最大 25 MiB） |
+| GET/HEAD | `/me/retell-attempts/{attemptId}/audio` | 鉴权下载私有复述录音，支持 Range |
+| DELETE | `/me/retell-attempts/{attemptId}` | 同时删除对象存储文件与录音记录 |
 | DELETE | `/me` | 删除账号与关联个人数据 |
 
 ## 4. 代表性响应

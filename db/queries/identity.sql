@@ -50,5 +50,32 @@ VALUES ($1, $2, $3, $4) RETURNING sequence;
 -- name: ListUserEventsAfter :many
 SELECT * FROM user_events WHERE user_id = $1 AND sequence > $2 ORDER BY sequence LIMIT $3;
 
+-- name: UpsertRetellAttempt :one
+INSERT INTO retell_attempts (
+    user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+ON CONFLICT (user_id, id) DO UPDATE
+SET content_id = EXCLUDED.content_id,
+    object_key = EXCLUDED.object_key,
+    duration_milliseconds = EXCLUDED.duration_milliseconds,
+    byte_size = EXCLUDED.byte_size,
+    content_type = EXCLUDED.content_type,
+    created_at = EXCLUDED.created_at,
+    server_updated_at = now()
+RETURNING *;
+
+-- name: ListRetellAttempts :many
+SELECT * FROM retell_attempts
+WHERE user_id = $1
+  AND (sqlc.narg('content_id')::uuid IS NULL OR content_id = sqlc.narg('content_id'))
+ORDER BY created_at DESC;
+
+-- name: GetRetellAttempt :one
+SELECT * FROM retell_attempts WHERE user_id = $1 AND id = $2;
+
+-- name: DeleteRetellAttempt :one
+DELETE FROM retell_attempts WHERE user_id = $1 AND id = $2
+RETURNING object_key;
+
 -- name: DeleteUser :exec
 DELETE FROM users WHERE id = $1;

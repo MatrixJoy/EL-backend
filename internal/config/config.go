@@ -18,6 +18,7 @@ type Config struct {
 	RedisAddr         string
 	ObjectBucket      string
 	PublishedBucket   string
+	UserMediaBucket   string
 	ObjectEndpoint    string
 	ObjectAccessKey   string
 	ObjectSecretKey   string
@@ -53,11 +54,12 @@ func Load() (Config, error) {
 		RedisAddr:         value("LEARNING_REDIS_ADDR", "VOA_REDIS_ADDR", "localhost:6379"),
 		ObjectBucket:      value("LEARNING_OBJECT_BUCKET", "VOA_OBJECT_BUCKET", "voa-learning-raw"),
 		PublishedBucket:   value("LEARNING_PUBLISHED_OBJECT_BUCKET", "VOA_PUBLISHED_OBJECT_BUCKET", "voa-learning-media"),
+		UserMediaBucket:   value("LEARNING_USER_MEDIA_BUCKET", "VOA_USER_MEDIA_BUCKET", "learning-user-media"),
 		ObjectEndpoint:    value("LEARNING_OBJECT_ENDPOINT", "VOA_OBJECT_ENDPOINT", "127.0.0.1:9000"),
 		ObjectAccessKey:   value("LEARNING_OBJECT_ACCESS_KEY", "VOA_OBJECT_ACCESS_KEY", "minioadmin"),
 		ObjectSecretKey:   value("LEARNING_OBJECT_SECRET_KEY", "VOA_OBJECT_SECRET_KEY", "minioadmin"),
 		ObjectUseTLS:      value("LEARNING_OBJECT_USE_TLS", "VOA_OBJECT_USE_TLS", "false") == "true",
-		AppleClientID:     value("LEARNING_APPLE_CLIENT_ID", "VOA_APPLE_CLIENT_ID", ""),
+		AppleClientID:     value("LEARNING_APPLE_CLIENT_ID", "VOA_APPLE_CLIENT_ID", "com.oldj.englishlearning"),
 		CMSPublishToken:   value("LEARNING_CMS_PUBLISH_TOKEN", "VOA_CMS_PUBLISH_TOKEN", ""),
 		SessionTTL:        30 * 24 * time.Hour,
 	}, nil
