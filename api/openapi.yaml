@@ -71,6 +71,12 @@ paths:
       operationId: authenticateWithApple
       requestBody: {required: true, content: {application/json: {schema: {type: object, required: [identityToken, nonce], properties: {identityToken: {type: string}, nonce: {type: string}, migration: {type: object}}}}}}
       responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "401": {$ref: "#/components/responses/Error"}}
+  /auth/development:
+    post:
+      operationId: authenticateDevelopmentDevice
+      description: Test-environment-only login for development-signed builds.
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [deviceId], properties: {deviceId: {type: string, format: uuid}, migration: {type: object}}}}}}
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "400": {$ref: "#/components/responses/Error"}, "404": {$ref: "#/components/responses/Error"}}
   /me:
     get: {operationId: getMe, security: [{bearerAuth: []}], responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "401": {$ref: "#/components/responses/Error"}}}
     delete: {operationId: deleteMe, security: [{bearerAuth: []}], responses: {"204": {description: Account deleted}, "401": {$ref: "#/components/responses/Error"}}}

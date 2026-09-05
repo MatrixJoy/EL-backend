@@ -18,13 +18,14 @@ type BuildInfo struct {
 }
 
 type Dependencies struct {
-	Queries        *dbgen.Queries
-	MediaClient    *http.Client
-	MediaStore     *objectstore.Store
-	UserMediaStore recordingObjectStore
-	Identity       *identity.Service
-	Publisher      publicationPublisher
-	PublishToken   string
+	Queries         *dbgen.Queries
+	MediaClient     *http.Client
+	MediaStore      *objectstore.Store
+	UserMediaStore  recordingObjectStore
+	Identity        *identity.Service
+	Publisher       publicationPublisher
+	PublishToken    string
+	DevelopmentAuth bool
 }
 
 const (
@@ -63,8 +64,9 @@ func NewRouter(logger *slog.Logger, build BuildInfo, dependencies ...Dependencie
 						"apiVersion": "v1",
 						"anonymous":  true,
 						"features": map[string]bool{
-							"mediaStreaming": true,
-							"offlineMedia":   false,
+							"mediaStreaming":  true,
+							"offlineMedia":    false,
+							"developmentAuth": deps.DevelopmentAuth,
 						},
 					},
 				})
@@ -76,7 +78,7 @@ func NewRouter(logger *slog.Logger, build BuildInfo, dependencies ...Dependencie
 		if deps.Identity != nil {
 			r.Group(func(account chi.Router) {
 				account.Use(newIPRateLimiter(accountRequestsPerMinute, accountRequestBurst).middleware)
-				mountIdentityRoutes(account, deps.Identity, deps.UserMediaStore)
+				mountIdentityRoutes(account, deps.Identity, deps.UserMediaStore, deps.DevelopmentAuth)
 			})
 		}
 	})

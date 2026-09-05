@@ -46,19 +46,32 @@ func (s *Service) Login(ctx context.Context, identityToken, nonce string, migrat
 	if err != nil {
 		return LoginResult{}, err
 	}
+	identityHash := sha256.Sum256([]byte(identityToken))
+	return s.createLogin(ctx, apple.Subject, identityHash[:], migration)
+}
+
+func (s *Service) LoginDevelopment(ctx context.Context, deviceID uuid.UUID, migration MigrationInput) (LoginResult, error) {
+	if deviceID == uuid.Nil {
+		return LoginResult{}, fmt.Errorf("development device ID is required")
+	}
+	return s.createLogin(ctx, "development:"+deviceID.String(), nil, migration)
+}
+
+func (s *Service) createLogin(ctx context.Context, subject string, identityTokenHash []byte, migration MigrationInput) (LoginResult, error) {
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return LoginResult{}, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 	q := dbgen.New(tx)
-	user, err := q.UpsertAppleUser(ctx, apple.Subject)
+	user, err := q.UpsertAppleUser(ctx, subject)
 	if err != nil {
 		return LoginResult{}, err
 	}
-	identityHash := sha256.Sum256([]byte(identityToken))
-	if err := q.RecordAppleIdentityTokenUse(ctx, dbgen.RecordAppleIdentityTokenUseParams{TokenHash: identityHash[:], UserID: user.ID}); err != nil {
-		return LoginResult{}, fmt.Errorf("identity token replay rejected: %w", err)
+	if len(identityTokenHash) > 0 {
+		if err := q.RecordAppleIdentityTokenUse(ctx, dbgen.RecordAppleIdentityTokenUseParams{TokenHash: identityTokenHash, UserID: user.ID}); err != nil {
+			return LoginResult{}, fmt.Errorf("identity token replay rejected: %w", err)
+		}
 	}
 	for _, contentID := range migration.Bookmarks {
 		if err := q.UpsertBookmark(ctx, dbgen.UpsertBookmarkParams{UserID: user.ID, ContentID: contentID}); err != nil {

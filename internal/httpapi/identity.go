@@ -16,7 +16,7 @@ import (
 
 type userContextKey struct{}
 
-func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore recordingObjectStore) {
+func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore recordingObjectStore, developmentAuth bool) {
 	r.Post("/auth/apple", func(w http.ResponseWriter, request *http.Request) {
 		var body struct {
 			IdentityToken string                  `json:"identityToken"`
@@ -34,6 +34,24 @@ func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore
 		}
 		writeJSON(w, 200, map[string]any{"data": result})
 	})
+	if developmentAuth {
+		r.Post("/auth/development", func(w http.ResponseWriter, request *http.Request) {
+			var body struct {
+				DeviceID  uuid.UUID               `json:"deviceId"`
+				Migration identity.MigrationInput `json:"migration"`
+			}
+			if json.NewDecoder(http.MaxBytesReader(w, request.Body, 1<<20)).Decode(&body) != nil || body.DeviceID == uuid.Nil {
+				writeError(w, 400, "VALIDATION_ERROR", request)
+				return
+			}
+			result, err := service.LoginDevelopment(request.Context(), body.DeviceID, body.Migration)
+			if err != nil {
+				writeError(w, 500, "INTERNAL_ERROR", request)
+				return
+			}
+			writeJSON(w, 200, map[string]any{"data": result})
+		})
+	}
 	r.Group(func(private chi.Router) {
 		private.Use(authenticationMiddleware(service))
 		if userMediaStore != nil {

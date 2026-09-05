@@ -28,6 +28,7 @@
 | Method | Path | 用途 |
 |---|---|---|
 | POST | `/auth/apple` | Apple identity token 换取会话 |
+| POST | `/auth/development` | 仅测试环境：设备开发身份换取会话，生产环境不挂载 |
 | GET | `/me` | 当前用户 |
 | PUT/DELETE | `/me/bookmarks/{contentId}` | 收藏/取消收藏 |
 | PUT | `/me/progress/{contentId}` | 幂等写学习进度 |

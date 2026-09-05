@@ -60,7 +60,7 @@ func main() {
 	publicationService := publishing.NewService(pool, mediaStore, cfg.Environment)
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(logger, httpapi.BuildInfo{Version: "dev"}, httpapi.Dependencies{Queries: dbgen.New(pool), MediaClient: mediaClient, MediaStore: mediaStore, UserMediaStore: userMediaStore, Identity: identityService, Publisher: publicationService, PublishToken: cfg.CMSPublishToken}),
+		Handler:           httpapi.NewRouter(logger, httpapi.BuildInfo{Version: "dev"}, httpapi.Dependencies{Queries: dbgen.New(pool), MediaClient: mediaClient, MediaStore: mediaStore, UserMediaStore: userMediaStore, Identity: identityService, Publisher: publicationService, PublishToken: cfg.CMSPublishToken, DevelopmentAuth: cfg.Environment != "production"}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 	}
 
