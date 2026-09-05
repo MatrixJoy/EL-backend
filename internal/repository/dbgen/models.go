@@ -411,3 +411,16 @@ type UserEvent struct {
 	Operation  string             `json:"operation"`
 	CreatedAt  pgtype.Timestamptz `json:"created_at"`
 }
+
+type VocabularyEntry struct {
+	ID              uuid.UUID          `json:"id"`
+	UserID          uuid.UUID          `json:"user_id"`
+	Word            string             `json:"word"`
+	NormalizedWord  string             `json:"normalized_word"`
+	Definition      pgtype.Text        `json:"definition"`
+	SentenceContext pgtype.Text        `json:"sentence_context"`
+	ContentID       pgtype.UUID        `json:"content_id"`
+	ContentTitle    pgtype.Text        `json:"content_title"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}

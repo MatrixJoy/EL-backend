@@ -43,6 +43,37 @@ RETURNING *;
 -- name: ListProgress :many
 SELECT * FROM learning_progress WHERE user_id = $1 ORDER BY server_updated_at DESC;
 
+-- name: UpsertVocabularyEntry :one
+INSERT INTO vocabulary_entries (
+    id, user_id, word, normalized_word, definition, sentence_context,
+    content_id, content_title, created_at
+)
+VALUES (
+    sqlc.arg('id'), sqlc.arg('user_id'), sqlc.arg('word'), sqlc.arg('normalized_word'),
+    NULLIF(sqlc.arg('definition')::text, ''),
+    NULLIF(sqlc.arg('sentence_context')::text, ''),
+    sqlc.narg('content_id'),
+    NULLIF(sqlc.arg('content_title')::text, ''),
+    sqlc.arg('created_at')
+)
+ON CONFLICT (user_id, normalized_word) DO UPDATE
+SET word = EXCLUDED.word,
+    definition = COALESCE(EXCLUDED.definition, vocabulary_entries.definition),
+    sentence_context = COALESCE(EXCLUDED.sentence_context, vocabulary_entries.sentence_context),
+    content_id = COALESCE(EXCLUDED.content_id, vocabulary_entries.content_id),
+    content_title = COALESCE(EXCLUDED.content_title, vocabulary_entries.content_title),
+    created_at = LEAST(vocabulary_entries.created_at, EXCLUDED.created_at),
+    updated_at = now()
+RETURNING *;
+
+-- name: ListVocabularyEntries :many
+SELECT * FROM vocabulary_entries
+WHERE user_id = $1
+ORDER BY updated_at DESC, word;
+
+-- name: DeleteVocabularyEntry :exec
+DELETE FROM vocabulary_entries WHERE user_id = $1 AND id = $2;
+
 -- name: CreateUserEvent :one
 INSERT INTO user_events (user_id, entity_type, entity_id, operation)
 VALUES ($1, $2, $3, $4) RETURNING sequence;

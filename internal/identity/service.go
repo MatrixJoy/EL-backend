@@ -22,8 +22,9 @@ type ProgressInput struct {
 	ClientUpdatedAt time.Time `json:"clientUpdatedAt"`
 }
 type MigrationInput struct {
-	Bookmarks []uuid.UUID     `json:"bookmarks"`
-	Progress  []ProgressInput `json:"progress"`
+	Bookmarks  []uuid.UUID       `json:"bookmarks"`
+	Progress   []ProgressInput   `json:"progress"`
+	Vocabulary []VocabularyInput `json:"vocabulary"`
 }
 type LoginResult struct {
 	UserID      uuid.UUID `json:"userId"`
@@ -81,6 +82,11 @@ func (s *Service) createLogin(ctx context.Context, subject string, identityToken
 	}
 	for _, progress := range migration.Progress {
 		if _, err := upsertProgress(ctx, q, user.ID, progress); err != nil {
+			return LoginResult{}, err
+		}
+	}
+	for _, entry := range migration.Vocabulary {
+		if _, err := upsertVocabulary(ctx, q, user.ID, entry); err != nil {
 			return LoginResult{}, err
 		}
 	}

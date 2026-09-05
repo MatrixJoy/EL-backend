@@ -109,6 +109,20 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const deleteVocabularyEntry = `-- name: DeleteVocabularyEntry :exec
+DELETE FROM vocabulary_entries WHERE user_id = $1 AND id = $2
+`
+
+type DeleteVocabularyEntryParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	ID     uuid.UUID `json:"id"`
+}
+
+func (q *Queries) DeleteVocabularyEntry(ctx context.Context, arg DeleteVocabularyEntryParams) error {
+	_, err := q.db.Exec(ctx, deleteVocabularyEntry, arg.UserID, arg.ID)
+	return err
+}
+
 const getRetellAttempt = `-- name: GetRetellAttempt :one
 SELECT user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at, server_updated_at FROM retell_attempts WHERE user_id = $1 AND id = $2
 `
@@ -294,6 +308,43 @@ func (q *Queries) ListUserEventsAfter(ctx context.Context, arg ListUserEventsAft
 	return items, nil
 }
 
+const listVocabularyEntries = `-- name: ListVocabularyEntries :many
+SELECT id, user_id, word, normalized_word, definition, sentence_context, content_id, content_title, created_at, updated_at FROM vocabulary_entries
+WHERE user_id = $1
+ORDER BY updated_at DESC, word
+`
+
+func (q *Queries) ListVocabularyEntries(ctx context.Context, userID uuid.UUID) ([]VocabularyEntry, error) {
+	rows, err := q.db.Query(ctx, listVocabularyEntries, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []VocabularyEntry{}
+	for rows.Next() {
+		var i VocabularyEntry
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Word,
+			&i.NormalizedWord,
+			&i.Definition,
+			&i.SentenceContext,
+			&i.ContentID,
+			&i.ContentTitle,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const recordAppleIdentityTokenUse = `-- name: RecordAppleIdentityTokenUse :exec
 INSERT INTO apple_identity_token_uses (token_hash, user_id) VALUES ($1, $2)
 `
@@ -428,6 +479,70 @@ func (q *Queries) UpsertRetellAttempt(ctx context.Context, arg UpsertRetellAttem
 		&i.ContentType,
 		&i.CreatedAt,
 		&i.ServerUpdatedAt,
+	)
+	return i, err
+}
+
+const upsertVocabularyEntry = `-- name: UpsertVocabularyEntry :one
+INSERT INTO vocabulary_entries (
+    id, user_id, word, normalized_word, definition, sentence_context,
+    content_id, content_title, created_at
+)
+VALUES (
+    $1, $2, $3, $4,
+    NULLIF($5::text, ''),
+    NULLIF($6::text, ''),
+    $7,
+    NULLIF($8::text, ''),
+    $9
+)
+ON CONFLICT (user_id, normalized_word) DO UPDATE
+SET word = EXCLUDED.word,
+    definition = COALESCE(EXCLUDED.definition, vocabulary_entries.definition),
+    sentence_context = COALESCE(EXCLUDED.sentence_context, vocabulary_entries.sentence_context),
+    content_id = COALESCE(EXCLUDED.content_id, vocabulary_entries.content_id),
+    content_title = COALESCE(EXCLUDED.content_title, vocabulary_entries.content_title),
+    created_at = LEAST(vocabulary_entries.created_at, EXCLUDED.created_at),
+    updated_at = now()
+RETURNING id, user_id, word, normalized_word, definition, sentence_context, content_id, content_title, created_at, updated_at
+`
+
+type UpsertVocabularyEntryParams struct {
+	ID              uuid.UUID          `json:"id"`
+	UserID          uuid.UUID          `json:"user_id"`
+	Word            string             `json:"word"`
+	NormalizedWord  string             `json:"normalized_word"`
+	Definition      string             `json:"definition"`
+	SentenceContext string             `json:"sentence_context"`
+	ContentID       pgtype.UUID        `json:"content_id"`
+	ContentTitle    string             `json:"content_title"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) UpsertVocabularyEntry(ctx context.Context, arg UpsertVocabularyEntryParams) (VocabularyEntry, error) {
+	row := q.db.QueryRow(ctx, upsertVocabularyEntry,
+		arg.ID,
+		arg.UserID,
+		arg.Word,
+		arg.NormalizedWord,
+		arg.Definition,
+		arg.SentenceContext,
+		arg.ContentID,
+		arg.ContentTitle,
+		arg.CreatedAt,
+	)
+	var i VocabularyEntry
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Word,
+		&i.NormalizedWord,
+		&i.Definition,
+		&i.SentenceContext,
+		&i.ContentID,
+		&i.ContentTitle,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

@@ -19,6 +19,7 @@ type Querier interface {
 	DeleteRetellAttempt(ctx context.Context, arg DeleteRetellAttemptParams) (string, error)
 	DeleteSession(ctx context.Context, tokenHash []byte) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
+	DeleteVocabularyEntry(ctx context.Context, arg DeleteVocabularyEntryParams) error
 	GetDeliverableAsset(ctx context.Context, id uuid.UUID) (Asset, error)
 	GetPublishedContent(ctx context.Context, id uuid.UUID) (GetPublishedContentRow, error)
 	GetRetellAttempt(ctx context.Context, arg GetRetellAttemptParams) (RetellAttempt, error)
@@ -41,6 +42,7 @@ type Querier interface {
 	ListSeriesContents(ctx context.Context, seriesID uuid.UUID) ([]ListSeriesContentsRow, error)
 	ListSourceItemsDueForFetch(ctx context.Context, limit int32) ([]SourceItem, error)
 	ListUserEventsAfter(ctx context.Context, arg ListUserEventsAfterParams) ([]UserEvent, error)
+	ListVocabularyEntries(ctx context.Context, userID uuid.UUID) ([]VocabularyEntry, error)
 	MarkSnapshotParsed(ctx context.Context, arg MarkSnapshotParsedParams) error
 	RecordAppleIdentityTokenUse(ctx context.Context, arg RecordAppleIdentityTokenUseParams) error
 	SearchPublishedContents(ctx context.Context, arg SearchPublishedContentsParams) ([]SearchPublishedContentsRow, error)
@@ -54,6 +56,7 @@ type Querier interface {
 	UpsertRetellAttempt(ctx context.Context, arg UpsertRetellAttemptParams) (RetellAttempt, error)
 	UpsertSeries(ctx context.Context, arg UpsertSeriesParams) (Series, error)
 	UpsertSourceItem(ctx context.Context, arg UpsertSourceItemParams) (SourceItem, error)
+	UpsertVocabularyEntry(ctx context.Context, arg UpsertVocabularyEntryParams) (VocabularyEntry, error)
 }
 
 var _ Querier = (*Queries)(nil)

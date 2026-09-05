@@ -8,6 +8,7 @@ sql:
       - db/migrations/000004_auth_replay.up.sql
       - db/migrations/000006_retell_attempts.up.sql
       - db/migrations/000007_search_content.up.sql
+      - db/migrations/000008_vocabulary_book.up.sql
     queries: db/queries
     gen:
       go:

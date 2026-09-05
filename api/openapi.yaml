@@ -91,6 +91,27 @@ paths:
       parameters: [{$ref: "#/components/parameters/ContentID"}]
       requestBody: {required: true, content: {application/json: {schema: {type: object, required: [positionSeconds, completed, clientUpdatedAt], properties: {positionSeconds: {type: integer, minimum: 0}, completed: {type: boolean}, clientUpdatedAt: {type: string, format: date-time}}}}}}
       responses: {"204": {description: Progress saved}, "401": {$ref: "#/components/responses/Error"}}
+  /me/vocabulary:
+    get:
+      operationId: listVocabulary
+      security: [{bearerAuth: []}]
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "401": {$ref: "#/components/responses/Error"}}
+  /me/vocabulary/{entryId}:
+    parameters:
+      - {name: entryId, in: path, required: true, schema: {type: string, format: uuid}}
+    put:
+      operationId: saveVocabularyEntry
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/VocabularyInput"}
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "400": {$ref: "#/components/responses/Error"}, "401": {$ref: "#/components/responses/Error"}}
+    delete:
+      operationId: deleteVocabularyEntry
+      security: [{bearerAuth: []}]
+      responses: {"204": {description: Vocabulary entry deleted}, "401": {$ref: "#/components/responses/Error"}}
   /me/sync:
     get:
       operationId: syncUserData
@@ -154,6 +175,16 @@ components:
         application/json:
           schema: {$ref: "#/components/schemas/ErrorEnvelope"}
   schemas:
+    VocabularyInput:
+      type: object
+      required: [word, createdAt]
+      properties:
+        word: {type: string, minLength: 1, maxLength: 100, pattern: "^[A-Za-z]+(?:['’-][A-Za-z]+)*$"}
+        definition: {type: string, maxLength: 2000}
+        context: {type: string, maxLength: 1000}
+        contentId: {type: string, format: uuid}
+        contentTitle: {type: string, maxLength: 300}
+        createdAt: {type: string, format: date-time}
     ErrorEnvelope:
       type: object
       required: [error]
