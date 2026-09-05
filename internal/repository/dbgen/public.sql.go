@@ -627,7 +627,10 @@ func (q *Queries) ListSeriesContents(ctx context.Context, seriesID uuid.UUID) ([
 
 const searchPublishedContents = `-- name: SearchPublishedContents :many
 SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, s.canonical_url,
-       ts_rank(to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.summary, '')), websearch_to_tsquery('english', $1)) AS rank
+       ts_rank(
+         to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.summary, '') || ' ' || coalesce(c.body_blocks::text, '') || ' ' || coalesce(c.metadata::text, '')),
+         websearch_to_tsquery('english', $1)
+       ) AS rank
 FROM contents c JOIN source_items s ON s.id = c.source_item_id
 WHERE c.status = 'published'
   AND EXISTS (
@@ -636,14 +639,28 @@ WHERE c.status = 'published'
     WHERE ca.content_id = c.id AND a.kind = 'audio'
       AND a.delivery_policy = 'managed_cache' AND a.availability = 'available'
   )
-  AND to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.summary, '')) @@ websearch_to_tsquery('english', $1)
-ORDER BY rank DESC, c.published_at DESC NULLS LAST
+  AND (
+    to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.summary, '') || ' ' || coalesce(c.body_blocks::text, '') || ' ' || coalesce(c.metadata::text, '')) @@ websearch_to_tsquery('english', $1)
+    OR lower(c.title) LIKE '%' || lower($1) || '%'
+    OR lower(coalesce(c.summary, '')) LIKE '%' || lower($1) || '%'
+    OR lower(c.body_blocks::text) LIKE '%' || lower($1) || '%'
+    OR lower(c.metadata::text) LIKE '%' || lower($1) || '%'
+  )
+ORDER BY
+  CASE
+    WHEN lower(c.title) = lower($1) THEN 4
+    WHEN lower(c.title) LIKE lower($1) || '%' THEN 3
+    WHEN lower(c.title) LIKE '%' || lower($1) || '%' THEN 2
+    ELSE 1
+  END DESC,
+  rank DESC,
+  c.published_at DESC NULLS LAST
 LIMIT $2
 `
 
 type SearchPublishedContentsParams struct {
-	WebsearchToTsquery string `json:"websearch_to_tsquery"`
-	Limit              int32  `json:"limit"`
+	SearchQuery string `json:"search_query"`
+	PageLimit   int32  `json:"page_limit"`
 }
 
 type SearchPublishedContentsRow struct {
@@ -671,7 +688,7 @@ type SearchPublishedContentsRow struct {
 }
 
 func (q *Queries) SearchPublishedContents(ctx context.Context, arg SearchPublishedContentsParams) ([]SearchPublishedContentsRow, error) {
-	rows, err := q.db.Query(ctx, searchPublishedContents, arg.WebsearchToTsquery, arg.Limit)
+	rows, err := q.db.Query(ctx, searchPublishedContents, arg.SearchQuery, arg.PageLimit)
 	if err != nil {
 		return nil, err
 	}

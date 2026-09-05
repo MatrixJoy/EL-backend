@@ -33,6 +33,12 @@ type Paragraph struct {
 	Text  string `json:"text"`
 }
 
+type FeaturedWord struct {
+	Word         string `json:"word"`
+	PartOfSpeech string `json:"part_of_speech"`
+	Definition   string `json:"definition"`
+}
+
 type Sentence struct {
 	Text       string  `json:"text"`
 	StartMS    *int    `json:"start_ms"`
@@ -56,24 +62,25 @@ type Audio struct {
 }
 
 type Document struct {
-	SchemaVersion   int         `json:"schema_version"`
-	SourceContentID string      `json:"source_content_id"`
-	Source          string      `json:"source"`
-	SourceURL       string      `json:"source_url"`
-	Attribution     string      `json:"attribution"`
-	ManifestETag    string      `json:"manifest_etag"`
-	Title           string      `json:"title"`
-	Description     string      `json:"description"`
-	Series          string      `json:"series"`
-	Level           string      `json:"level"`
-	Topics          []string    `json:"topics"`
-	LearningGoals   []string    `json:"learning_goals"`
-	QualityScore    int         `json:"quality_score"`
-	WordCount       int         `json:"word_count"`
-	PublishedAt     string      `json:"published_at"`
-	Paragraphs      []Paragraph `json:"paragraphs"`
-	Timeline        Timeline    `json:"timeline"`
-	Audio           Audio       `json:"audio"`
+	SchemaVersion   int            `json:"schema_version"`
+	SourceContentID string         `json:"source_content_id"`
+	Source          string         `json:"source"`
+	SourceURL       string         `json:"source_url"`
+	Attribution     string         `json:"attribution"`
+	ManifestETag    string         `json:"manifest_etag"`
+	Title           string         `json:"title"`
+	Description     string         `json:"description"`
+	Series          string         `json:"series"`
+	Level           string         `json:"level"`
+	Topics          []string       `json:"topics"`
+	LearningGoals   []string       `json:"learning_goals"`
+	QualityScore    int            `json:"quality_score"`
+	WordCount       int            `json:"word_count"`
+	PublishedAt     string         `json:"published_at"`
+	Paragraphs      []Paragraph    `json:"paragraphs"`
+	FeaturedWords   []FeaturedWord `json:"featured_words"`
+	Timeline        Timeline       `json:"timeline"`
+	Audio           Audio          `json:"audio"`
 }
 
 type Result struct {
@@ -204,8 +211,13 @@ func (s *Service) existing(ctx context.Context, key string) (Result, bool, error
 }
 
 func validate(key string, d Document) error {
-	if len(key) < 32 || len(key) > 128 || d.SchemaVersion != 1 || strings.TrimSpace(d.SourceContentID) == "" || strings.TrimSpace(d.Source) == "" || strings.TrimSpace(d.SourceURL) == "" || strings.TrimSpace(d.ManifestETag) == "" || strings.TrimSpace(d.Title) == "" || len(d.Paragraphs) == 0 || len(d.Timeline.Sentences) == 0 {
+	if len(key) < 32 || len(key) > 128 || (d.SchemaVersion != 1 && d.SchemaVersion != 2) || strings.TrimSpace(d.SourceContentID) == "" || strings.TrimSpace(d.Source) == "" || strings.TrimSpace(d.SourceURL) == "" || strings.TrimSpace(d.ManifestETag) == "" || strings.TrimSpace(d.Title) == "" || len(d.Paragraphs) == 0 || len(d.Timeline.Sentences) == 0 {
 		return ErrInvalidDocument
+	}
+	for _, word := range d.FeaturedWords {
+		if strings.TrimSpace(word.Word) == "" || strings.TrimSpace(word.Definition) == "" {
+			return ErrInvalidDocument
+		}
 	}
 	if d.Audio.ByteSize <= 0 || d.Audio.ByteSize > maxAudioBytes || d.Audio.MIMEType != "audio/mpeg" || !hexSHA256.MatchString(d.Audio.SHA256) {
 		return ErrInvalidDocument
@@ -224,7 +236,7 @@ func encodeContent(d Document) ([]byte, []byte, []byte, error) {
 	for _, paragraph := range d.Paragraphs {
 		body = append(body, map[string]any{"type": "paragraph", "text": paragraph.Text, "index": paragraph.Index})
 	}
-	metadata := map[string]any{"sourceContentId": d.SourceContentID, "manifestEtag": d.ManifestETag, "series": d.Series, "topics": d.Topics, "learningGoals": d.LearningGoals, "qualityScore": d.QualityScore, "wordCount": d.WordCount, "timelineVersion": d.Timeline.Version, "timelineCoverage": d.Timeline.Coverage}
+	metadata := map[string]any{"sourceContentId": d.SourceContentID, "manifestEtag": d.ManifestETag, "series": d.Series, "topics": d.Topics, "learningGoals": d.LearningGoals, "qualityScore": d.QualityScore, "wordCount": d.WordCount, "timelineVersion": d.Timeline.Version, "timelineCoverage": d.Timeline.Coverage, "featuredWords": d.FeaturedWords}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		return nil, nil, nil, err

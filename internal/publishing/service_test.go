@@ -28,6 +28,19 @@ func TestValidatePublication(t *testing.T) {
 	}
 }
 
+func TestValidateFeaturedWords(t *testing.T) {
+	document := validDocument()
+	document.SchemaVersion = 2
+	document.FeaturedWords = []FeaturedWord{{Word: "pest", PartOfSpeech: "noun", Definition: "an animal or insect that causes problems"}}
+	if err := validate("12345678901234567890123456789012", document); err != nil {
+		t.Fatalf("valid featured word rejected: %v", err)
+	}
+	document.FeaturedWords[0].Definition = ""
+	if err := validate("12345678901234567890123456789012", document); err == nil {
+		t.Fatal("featured word without a definition accepted")
+	}
+}
+
 func TestSlugify(t *testing.T) {
 	if got := slugify("VOA: Everyday Grammar"); got != "voa-everyday-grammar" {
 		t.Fatalf("slugify() = %q", got)

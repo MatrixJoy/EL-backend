@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -163,7 +164,84 @@ func (h publicHandlers) content(w http.ResponseWriter, r *http.Request) {
 	if len(row.Metadata) == 0 || string(row.Metadata) == "null" {
 		metadata = json.RawMessage("{}")
 	}
-	writeJSON(w, 200, map[string]any{"data": map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "bodyBlocks": bodyBlocks, "transcriptBlocks": transcriptBlocks, "metadata": metadata, "assets": assetDTO, "source": map[string]any{"name": row.Attribution, "canonicalUrl": row.CanonicalUrl}, "revision": row.Revision}})
+	writeJSON(w, 200, map[string]any{"data": map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "bodyBlocks": bodyBlocks, "transcriptBlocks": transcriptBlocks, "featuredWords": contentFeaturedWords(metadata, bodyBlocks), "metadata": metadata, "assets": assetDTO, "source": map[string]any{"name": row.Attribution, "canonicalUrl": row.CanonicalUrl}, "revision": row.Revision}})
+}
+
+type featuredWordDTO struct {
+	Word         string `json:"word"`
+	PartOfSpeech string `json:"partOfSpeech,omitempty"`
+	Definition   string `json:"definition"`
+}
+
+var legacyFeaturedWordPattern = regexp.MustCompile(`(?i)^([[:alpha:]][[:alpha:]'’ -]{0,80}?)\s+[–—-]\s*(phr(?:asal)?\s+v|n|v|adj|adv|prep|pron)\.\s+(.+)$`)
+
+func contentFeaturedWords(metadata, bodyBlocks json.RawMessage) []featuredWordDTO {
+	var stored struct {
+		FeaturedWords []struct {
+			Word         string `json:"word"`
+			PartOfSpeech string `json:"part_of_speech"`
+			Definition   string `json:"definition"`
+		} `json:"featuredWords"`
+	}
+	if json.Unmarshal(metadata, &stored) == nil && len(stored.FeaturedWords) > 0 {
+		words := make([]featuredWordDTO, 0, len(stored.FeaturedWords))
+		for _, word := range stored.FeaturedWords {
+			words = append(words, featuredWordDTO{Word: word.Word, PartOfSpeech: word.PartOfSpeech, Definition: word.Definition})
+		}
+		return words
+	}
+
+	var blocks []struct {
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(bodyBlocks, &blocks) != nil {
+		return []featuredWordDTO{}
+	}
+	words := make([]featuredWordDTO, 0)
+	inGlossary := false
+	for _, block := range blocks {
+		text := strings.TrimSpace(block.Text)
+		if len(text) >= 10 && strings.Trim(text, "_") == "" {
+			if inGlossary && len(words) > 0 {
+				break
+			}
+			inGlossary = true
+			continue
+		}
+		if !inGlossary {
+			continue
+		}
+		match := legacyFeaturedWordPattern.FindStringSubmatch(text)
+		if len(match) != 4 {
+			if len(words) > 0 {
+				break
+			}
+			continue
+		}
+		words = append(words, featuredWordDTO{Word: strings.TrimSpace(match[1]), PartOfSpeech: normalizeFeaturedPartOfSpeech(match[2]), Definition: strings.TrimSpace(match[3])})
+	}
+	return words
+}
+
+func normalizeFeaturedPartOfSpeech(value string) string {
+	switch strings.ToLower(strings.Join(strings.Fields(value), " ")) {
+	case "n":
+		return "noun"
+	case "v":
+		return "verb"
+	case "adj":
+		return "adjective"
+	case "adv":
+		return "adverb"
+	case "prep":
+		return "preposition"
+	case "pron":
+		return "pronoun"
+	case "phr v", "phrasal v":
+		return "phrasal verb"
+	default:
+		return value
+	}
 }
 
 func (h publicHandlers) search(w http.ResponseWriter, r *http.Request) {
@@ -172,7 +250,7 @@ func (h publicHandlers) search(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "VALIDATION_ERROR", r)
 		return
 	}
-	rows, err := h.queries.SearchPublishedContents(r.Context(), dbgen.SearchPublishedContentsParams{WebsearchToTsquery: query, Limit: 50})
+	rows, err := h.queries.SearchPublishedContents(r.Context(), dbgen.SearchPublishedContentsParams{SearchQuery: query, PageLimit: 50})
 	if err != nil {
 		writeError(w, 500, "INTERNAL_ERROR", r)
 		return

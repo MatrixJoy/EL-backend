@@ -61,7 +61,10 @@ ORDER BY ca.position, a.id;
 
 -- name: SearchPublishedContents :many
 SELECT c.*, s.canonical_url,
-       ts_rank(to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.summary, '')), websearch_to_tsquery('english', $1)) AS rank
+       ts_rank(
+         to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.summary, '') || ' ' || coalesce(c.body_blocks::text, '') || ' ' || coalesce(c.metadata::text, '')),
+         websearch_to_tsquery('english', sqlc.arg(search_query))
+       ) AS rank
 FROM contents c JOIN source_items s ON s.id = c.source_item_id
 WHERE c.status = 'published'
   AND EXISTS (
@@ -70,9 +73,23 @@ WHERE c.status = 'published'
     WHERE ca.content_id = c.id AND a.kind = 'audio'
       AND a.delivery_policy = 'managed_cache' AND a.availability = 'available'
   )
-  AND to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.summary, '')) @@ websearch_to_tsquery('english', $1)
-ORDER BY rank DESC, c.published_at DESC NULLS LAST
-LIMIT $2;
+  AND (
+    to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.summary, '') || ' ' || coalesce(c.body_blocks::text, '') || ' ' || coalesce(c.metadata::text, '')) @@ websearch_to_tsquery('english', sqlc.arg(search_query))
+    OR lower(c.title) LIKE '%' || lower(sqlc.arg(search_query)) || '%'
+    OR lower(coalesce(c.summary, '')) LIKE '%' || lower(sqlc.arg(search_query)) || '%'
+    OR lower(c.body_blocks::text) LIKE '%' || lower(sqlc.arg(search_query)) || '%'
+    OR lower(c.metadata::text) LIKE '%' || lower(sqlc.arg(search_query)) || '%'
+  )
+ORDER BY
+  CASE
+    WHEN lower(c.title) = lower(sqlc.arg(search_query)) THEN 4
+    WHEN lower(c.title) LIKE lower(sqlc.arg(search_query)) || '%' THEN 3
+    WHEN lower(c.title) LIKE '%' || lower(sqlc.arg(search_query)) || '%' THEN 2
+    ELSE 1
+  END DESC,
+  rank DESC,
+  c.published_at DESC NULLS LAST
+LIMIT sqlc.arg(page_limit);
 
 -- name: ListPublishEventsAfter :many
 SELECT pe.* FROM publish_events pe
