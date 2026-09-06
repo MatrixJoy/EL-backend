@@ -34,3 +34,14 @@ func TestStripAdjectiveMarker(t *testing.T) {
 		t.Fatalf("stripAdjectiveMarker()=%q", got)
 	}
 }
+
+func TestParseIndexLinePreservesSenseOrder(t *testing.T) {
+	t.Parallel()
+	rows, ok, err := parseIndexLine("bird n 2 1 @ 2 1 01503061 01503396", "noun")
+	if err != nil || !ok {
+		t.Fatalf("parseIndexLine() ok=%v err=%v", ok, err)
+	}
+	if len(rows) != 2 || rows[0][2] != "n:01503061" || rows[0][3] != 1 || rows[1][3] != 2 {
+		t.Fatalf("parseIndexLine() rows=%v", rows)
+	}
+}
