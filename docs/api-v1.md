@@ -20,6 +20,7 @@
 | GET | `/series/{id}` | 系列信息及剧集/课程列表 |
 | GET | `/contents/{id}` | 内容详情、正文 block、资源与来源 |
 | GET | `/search?q=` | 搜索标题、摘要、正文和精选单词；停用词与标题片段也可匹配 |
+| GET | `/dictionary/{word}` | 查询自托管英语词典，返回多词性释义与例句 |
 | GET | `/sync?cursor=` | 内容增量 upsert/tombstone |
 | GET/HEAD | `/media/{assetId}` | 首期通过后台流式代理交付，支持 Range |
 

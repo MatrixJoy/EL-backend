@@ -34,6 +34,7 @@ type Querier interface {
 	ListCategoryContents(ctx context.Context, arg ListCategoryContentsParams) ([]ListCategoryContentsRow, error)
 	ListContentAssets(ctx context.Context, contentID uuid.UUID) ([]ListContentAssetsRow, error)
 	ListContentsByStatus(ctx context.Context, arg ListContentsByStatusParams) ([]Content, error)
+	ListDictionaryFormLemmas(ctx context.Context, form string) ([]string, error)
 	ListProgress(ctx context.Context, userID uuid.UUID) ([]LearningProgress, error)
 	ListPublishEventsAfter(ctx context.Context, arg ListPublishEventsAfterParams) ([]PublishEvent, error)
 	ListPublishedContents(ctx context.Context, arg ListPublishedContentsParams) ([]ListPublishedContentsRow, error)
@@ -43,6 +44,7 @@ type Querier interface {
 	ListSourceItemsDueForFetch(ctx context.Context, limit int32) ([]SourceItem, error)
 	ListUserEventsAfter(ctx context.Context, arg ListUserEventsAfterParams) ([]UserEvent, error)
 	ListVocabularyEntries(ctx context.Context, userID uuid.UUID) ([]VocabularyEntry, error)
+	LookupDictionaryEntries(ctx context.Context, words []string) ([]DictionaryEntry, error)
 	MarkSnapshotParsed(ctx context.Context, arg MarkSnapshotParsedParams) error
 	RecordAppleIdentityTokenUse(ctx context.Context, arg RecordAppleIdentityTokenUseParams) error
 	SearchPublishedContents(ctx context.Context, arg SearchPublishedContentsParams) ([]SearchPublishedContentsRow, error)

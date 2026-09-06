@@ -320,6 +320,27 @@ type ContentSeries struct {
 	Position  int32     `json:"position"`
 }
 
+type DictionaryEntry struct {
+	ID              int64              `json:"id"`
+	NormalizedWord  string             `json:"normalized_word"`
+	Word            string             `json:"word"`
+	PartOfSpeech    string             `json:"part_of_speech"`
+	Definition      string             `json:"definition"`
+	Examples        []string           `json:"examples"`
+	Source          string             `json:"source"`
+	SourceReference string             `json:"source_reference"`
+	SenseRank       int32              `json:"sense_rank"`
+	ContentID       pgtype.UUID        `json:"content_id"`
+	CreatedAt       pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+}
+
+type DictionaryForm struct {
+	Form         string `json:"form"`
+	Lemma        string `json:"lemma"`
+	PartOfSpeech string `json:"part_of_speech"`
+}
+
 type LearningProgress struct {
 	UserID          uuid.UUID          `json:"user_id"`
 	ContentID       uuid.UUID          `json:"content_id"`

@@ -173,6 +173,9 @@ func (s *Service) Publish(ctx context.Context, idempotencyKey string, document D
 	if err = linkTaxonomy(ctx, tx, contentID, document); err != nil {
 		return Result{}, err
 	}
+	if err = upsertFeaturedDictionary(ctx, tx, contentID, document); err != nil {
+		return Result{}, err
+	}
 	var assetID uuid.UUID
 	sourceURL := fmt.Sprintf("cms://%s/%s/audio", safeSegment(document.Source), safeSegment(document.SourceContentID))
 	err = tx.QueryRow(ctx, `INSERT INTO assets(kind,source_url,source_host,mime_type,byte_size,duration_seconds,quality_label,checksum,delivery_policy,rights_status,attribution,object_key,availability) VALUES('audio',$1,'cms',$2,$3,$4,'original',$5,'managed_cache','review_required',$6,$7,'available') ON CONFLICT(source_url) DO UPDATE SET mime_type=excluded.mime_type,byte_size=excluded.byte_size,duration_seconds=excluded.duration_seconds,checksum=excluded.checksum,delivery_policy='managed_cache',attribution=excluded.attribution,object_key=excluded.object_key,availability='available',updated_at=now() RETURNING id`, sourceURL, document.Audio.MIMEType, document.Audio.ByteSize, (document.Timeline.DurationMS+999)/1000, document.Audio.SHA256, attribution, objectKey).Scan(&assetID)
@@ -268,6 +271,33 @@ func linkTaxonomy(ctx context.Context, tx pgx.Tx, contentID uuid.UUID, d Documen
 		}
 		_, err = tx.Exec(ctx, `INSERT INTO content_series(content_id,series_id,position) VALUES($1,$2,0) ON CONFLICT(content_id) DO UPDATE SET series_id=excluded.series_id`, contentID, seriesID)
 		return err
+	}
+	return nil
+}
+
+func upsertFeaturedDictionary(ctx context.Context, tx pgx.Tx, contentID uuid.UUID, document Document) error {
+	for _, entry := range document.FeaturedWords {
+		word := strings.TrimSpace(entry.Word)
+		definition := strings.TrimSpace(entry.Definition)
+		if word == "" || definition == "" {
+			continue
+		}
+		partOfSpeech := strings.ToLower(strings.TrimSpace(entry.PartOfSpeech))
+		if partOfSpeech == "" {
+			partOfSpeech = "other"
+		}
+		_, err := tx.Exec(ctx, `
+			INSERT INTO dictionary_entries (
+				normalized_word, word, part_of_speech, definition,
+				source, source_reference, sense_rank, content_id
+			) VALUES ($1,$2,$3,$4,'published-content',$5,0,$6)
+			ON CONFLICT (normalized_word, part_of_speech, definition, source) DO UPDATE
+			SET word=excluded.word, source_reference=excluded.source_reference,
+				content_id=excluded.content_id, sense_rank=0, updated_at=now()`,
+			strings.ToLower(word), word, partOfSpeech, definition, document.SourceContentID, contentID)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

@@ -39,6 +39,12 @@ paths:
       parameters:
         - {name: q, in: query, required: true, schema: {type: string, minLength: 2, maxLength: 100}}
       responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "400": {$ref: "#/components/responses/Error"}}
+  /dictionary/{word}:
+    get:
+      operationId: lookupDictionaryWord
+      parameters:
+        - {name: word, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 100}}
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "400": {$ref: "#/components/responses/Error"}}
   /sync:
     get:
       operationId: syncCatalog

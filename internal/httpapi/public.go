@@ -30,6 +30,7 @@ func mountPublicRoutes(r chi.Router, deps Dependencies) {
 	r.Get("/contents", h.contents)
 	r.Get("/contents/{id}", h.content)
 	r.Get("/search", h.search)
+	r.Get("/dictionary/{word}", h.dictionary)
 	r.Get("/sync", h.sync)
 	r.Get("/series", h.series)
 	r.Get("/series/{id}", h.seriesDetail)
