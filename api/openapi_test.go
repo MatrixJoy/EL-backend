@@ -23,7 +23,7 @@ func TestOpenAPIContractIsValidAndComplete(t *testing.T) {
 	if document.Components.Schemas["GrammarPoint"] == nil || document.Components.Schemas["ContentDetailEnvelope"] == nil || document.Components.Schemas["GrammarAttempt"] == nil {
 		t.Fatal("OpenAPI missing grammar-aware content schemas")
 	}
-	for _, route := range []string{"/bootstrap", "/home", "/categories", "/categories/{slug}/contents", "/contents", "/contents/{id}", "/search", "/sync", "/series", "/series/{id}", "/media/{id}", "/auth/apple", "/auth/development", "/me", "/me/bookmarks/{contentId}", "/me/progress/{contentId}", "/me/vocabulary", "/me/vocabulary/{entryId}", "/me/grammar-attempts", "/me/grammar-attempts/{attemptId}", "/me/sync", "/me/retell-attempts", "/me/retell-attempts/{attemptId}", "/me/retell-attempts/{attemptId}/audio"} {
+	for _, route := range []string{"/bootstrap", "/home", "/categories", "/categories/{slug}/contents", "/contents", "/contents/{id}", "/search", "/sync", "/series", "/series/{id}", "/media/{id}", "/auth/apple", "/auth/development", "/me", "/me/home", "/me/bookmarks/{contentId}", "/me/progress/{contentId}", "/me/vocabulary", "/me/vocabulary/{entryId}", "/me/grammar-attempts", "/me/grammar-attempts/{attemptId}", "/me/sync", "/me/retell-attempts", "/me/retell-attempts/{attemptId}", "/me/retell-attempts/{attemptId}/audio"} {
 		if document.Paths.Find(route) == nil {
 			t.Errorf("OpenAPI missing %s", route)
 		}

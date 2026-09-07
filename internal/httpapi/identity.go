@@ -56,6 +56,7 @@ func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore
 		private.Use(authenticationMiddleware(service))
 		mountVocabularyRoutes(private, service)
 		mountGrammarRoutes(private, service)
+		mountRecommendationRoutes(private, service)
 		if userMediaStore != nil {
 			mountRetellRoutes(private, service, userMediaStore)
 		}
