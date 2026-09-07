@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: English Learning App API
-  version: 0.6.0
+  version: 0.7.0
   description: Anonymous-first mobile API with source attribution on every published item.
 servers:
   - url: /api/v1
@@ -255,6 +255,23 @@ components:
         application/json:
           schema: {$ref: "#/components/schemas/ErrorEnvelope"}
   schemas:
+    ContentSummary:
+      type: object
+      required: [id, type, title, learningGoals, revision]
+      properties:
+        id: {type: string, format: uuid}
+        type: {type: string, enum: [article, lesson, podcast, video, quiz]}
+        title: {type: string}
+        summary: {type: string, nullable: true}
+        level: {type: string, enum: [beginning, intermediate, advanced], nullable: true}
+        publishedAt: {type: string, format: date-time, nullable: true}
+        durationSeconds: {type: integer, minimum: 0, nullable: true}
+        learningGoals:
+          type: array
+          uniqueItems: true
+          items: {type: string}
+        revision: {type: integer, minimum: 1}
+        recommendationReason: {type: string, nullable: true}
     GrammarPoint:
       type: object
       required: [kind, title, explanation, example, prompt, answer, options]

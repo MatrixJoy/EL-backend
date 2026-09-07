@@ -54,7 +54,7 @@ func (h publicHandlers) home(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "revision": row.Revision})
+		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "learningGoals": contentLearningGoals(row.Metadata), "revision": row.Revision})
 	}
 	w.Header().Set("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
 	writeJSON(w, http.StatusOK, map[string]any{"data": map[string]any{"sections": []any{map[string]any{"id": "latest", "title": "Latest", "items": items}}}})
@@ -81,7 +81,7 @@ func (h publicHandlers) categoryContents(w http.ResponseWriter, r *http.Request)
 	}
 	items := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "revision": row.Revision})
+		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "learningGoals": contentLearningGoals(row.Metadata), "revision": row.Revision})
 	}
 	writeJSON(w, 200, map[string]any{"data": items})
 }
@@ -120,7 +120,7 @@ func (h publicHandlers) contents(w http.ResponseWriter, r *http.Request) {
 	items := make([]map[string]any, 0, len(rows))
 	next := ""
 	for _, row := range rows {
-		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "revision": row.Revision})
+		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "learningGoals": contentLearningGoals(row.Metadata), "revision": row.Revision})
 	}
 	if len(rows) == int(params.PageLimit) {
 		last := rows[len(rows)-1]
@@ -192,6 +192,30 @@ func contentGrammarPoints(metadata json.RawMessage) []grammarPointDTO {
 		return []grammarPointDTO{}
 	}
 	return stored.GrammarPoints
+}
+
+func contentLearningGoals(metadata json.RawMessage) []string {
+	var stored struct {
+		LearningGoals []string          `json:"learningGoals"`
+		GrammarPoints []grammarPointDTO `json:"grammarPoints"`
+	}
+	if json.Unmarshal(metadata, &stored) != nil {
+		return []string{}
+	}
+	goals := make([]string, 0, len(stored.LearningGoals)+1)
+	seen := make(map[string]bool, len(stored.LearningGoals)+1)
+	for _, raw := range stored.LearningGoals {
+		goal := strings.ToLower(strings.TrimSpace(raw))
+		if goal == "" || seen[goal] {
+			continue
+		}
+		seen[goal] = true
+		goals = append(goals, goal)
+	}
+	if len(stored.GrammarPoints) > 0 && !seen["grammar"] {
+		goals = append(goals, "grammar")
+	}
+	return goals
 }
 
 var legacyFeaturedWordPattern = regexp.MustCompile(`(?i)^([[:alpha:]][[:alpha:]'’ -]{0,80}?)\s+[–—-]\s*(phr(?:asal)?\s+v|n|v|adj|adv|prep|pron)\.\s+(.+)$`)
@@ -278,7 +302,7 @@ func (h publicHandlers) search(w http.ResponseWriter, r *http.Request) {
 	}
 	items := make([]map[string]any, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "revision": row.Revision})
+		items = append(items, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "learningGoals": contentLearningGoals(row.Metadata), "revision": row.Revision})
 	}
 	writeJSON(w, 200, map[string]any{"data": items})
 }
@@ -342,7 +366,7 @@ func (h publicHandlers) seriesDetail(w http.ResponseWriter, r *http.Request) {
 	}
 	contentItems := make([]map[string]any, 0, len(items))
 	for _, row := range items {
-		contentItems = append(contentItems, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "revision": row.Revision, "position": row.Position})
+		contentItems = append(contentItems, map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "learningGoals": contentLearningGoals(row.Metadata), "revision": row.Revision, "position": row.Position})
 	}
 	writeJSON(w, 200, map[string]any{"data": map[string]any{"series": map[string]any{"id": series.ID, "slug": series.Slug, "title": series.Title, "description": textValue(series.Description), "level": textValue(series.Level)}, "items": contentItems}})
 }

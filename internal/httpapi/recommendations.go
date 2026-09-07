@@ -163,7 +163,7 @@ func recommendationSummary(row dbgen.ListPublishedContentsRow, reason string) ma
 		"id": row.ID, "type": row.Type, "title": row.Title,
 		"summary": textValue(row.Summary), "level": textValue(row.Level),
 		"publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds),
-		"revision": row.Revision, "recommendationReason": reason,
+		"learningGoals": contentLearningGoals(row.Metadata), "revision": row.Revision, "recommendationReason": reason,
 	}
 }
 

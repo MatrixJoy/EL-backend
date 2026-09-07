@@ -41,3 +41,14 @@ func TestContentGrammarPointsUsesStructuredMetadata(t *testing.T) {
 		t.Fatalf("empty grammar points = %#v", empty)
 	}
 }
+
+func TestContentLearningGoalsNormalizesAndInfersGrammar(t *testing.T) {
+	metadata := json.RawMessage(`{"learningGoals":["Listening","retelling","listening"],"grammarPoints":[{"kind":"modal","title":"Modal verb","explanation":"A modal expresses possibility.","example":"People can learn.","prompt":"People _____ learn.","answer":"can","options":["can","could"]}]}`)
+	goals := contentLearningGoals(metadata)
+	if len(goals) != 3 || goals[0] != "listening" || goals[1] != "retelling" || goals[2] != "grammar" {
+		t.Fatalf("learning goals = %#v", goals)
+	}
+	if empty := contentLearningGoals(json.RawMessage(`not-json`)); len(empty) != 0 || empty == nil {
+		t.Fatalf("invalid metadata goals = %#v", empty)
+	}
+}

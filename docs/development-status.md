@@ -23,6 +23,7 @@
 ## M2：移动 API — 已完成
 
 - bootstrap、home、categories、contents、series、search、sync。
+- 首页、目录、搜索和系列摘要统一返回 `learningGoals`，客户端可按已发布内容的真实能力组合学习入口；带结构化语法题的内容会自动补充 `grammar` 能力。
 - 内容游标分页、增量 tombstone/event 模型、ETag/304 和 Cache-Control。
 - 匿名 IP 限流与 Prometheus 文本指标。
 - 媒体 GET/HEAD、Range/206、断点续播头透传和逐跳 SSRF allowlist。

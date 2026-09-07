@@ -36,6 +36,10 @@ func TestPersonalizedHomePrioritizesContinueAndLearningNeeds(t *testing.T) {
 	if recommended[0]["id"] != grammarID || recommended[0]["recommendationReason"] != "Build confidence with more grammar practice" {
 		t.Fatalf("recommended = %#v", recommended)
 	}
+	goals := recommended[0]["learningGoals"].([]string)
+	if len(goals) != 1 || goals[0] != "grammar" {
+		t.Fatalf("recommended learning goals = %#v", goals)
+	}
 	for _, item := range recommended {
 		if item["id"] == completedID || item["id"] == continueID {
 			t.Fatalf("completed or continued content leaked into recommendations: %#v", item)
