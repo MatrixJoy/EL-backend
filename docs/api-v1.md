@@ -37,6 +37,7 @@
 | GET | `/me/retell-attempts?contentId=` | 获取当前用户的复述录音元数据 |
 | PUT | `/me/retell-attempts/{attemptId}` | 上传或幂等更新私有复述录音（最大 25 MiB） |
 | GET/HEAD | `/me/retell-attempts/{attemptId}/audio` | 鉴权下载私有复述录音，支持 Range |
+| PUT | `/me/retell-attempts/{attemptId}/review` | 幂等保存设备转写、关键词覆盖与完成度反馈 |
 | DELETE | `/me/retell-attempts/{attemptId}` | 同时删除对象存储文件与录音记录 |
 | GET | `/me/vocabulary` | 获取当前用户的生词本 |
 | PUT | `/me/vocabulary/{entryId}` | 幂等保存生词、释义、原句和文章来源 |

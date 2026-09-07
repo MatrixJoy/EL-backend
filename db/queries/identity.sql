@@ -152,6 +152,33 @@ ORDER BY created_at DESC;
 -- name: GetRetellAttempt :one
 SELECT * FROM retell_attempts WHERE user_id = $1 AND id = $2;
 
+-- name: UpdateRetellReview :one
+UPDATE retell_attempts
+SET transcript = CASE
+        WHEN review_client_updated_at <= sqlc.arg('client_updated_at') THEN sqlc.arg('transcript')
+        ELSE transcript
+    END,
+    matched_keywords = CASE
+        WHEN review_client_updated_at <= sqlc.arg('client_updated_at') THEN sqlc.arg('matched_keywords')
+        ELSE matched_keywords
+    END,
+    keyword_count = CASE
+        WHEN review_client_updated_at <= sqlc.arg('client_updated_at') THEN sqlc.arg('keyword_count')
+        ELSE keyword_count
+    END,
+    word_count = CASE
+        WHEN review_client_updated_at <= sqlc.arg('client_updated_at') THEN sqlc.arg('word_count')
+        ELSE word_count
+    END,
+    completion_score = CASE
+        WHEN review_client_updated_at <= sqlc.arg('client_updated_at') THEN sqlc.arg('completion_score')
+        ELSE completion_score
+    END,
+    review_client_updated_at = GREATEST(review_client_updated_at, sqlc.arg('client_updated_at')),
+    server_updated_at = now()
+WHERE user_id = sqlc.arg('user_id') AND id = sqlc.arg('id')
+RETURNING *;
+
 -- name: DeleteRetellAttempt :one
 DELETE FROM retell_attempts WHERE user_id = $1 AND id = $2
 RETURNING object_key;

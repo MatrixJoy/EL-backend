@@ -371,15 +371,21 @@ type PublishEvent struct {
 }
 
 type RetellAttempt struct {
-	UserID               uuid.UUID          `json:"user_id"`
-	ID                   uuid.UUID          `json:"id"`
-	ContentID            uuid.UUID          `json:"content_id"`
-	ObjectKey            string             `json:"object_key"`
-	DurationMilliseconds int32              `json:"duration_milliseconds"`
-	ByteSize             int64              `json:"byte_size"`
-	ContentType          string             `json:"content_type"`
-	CreatedAt            pgtype.Timestamptz `json:"created_at"`
-	ServerUpdatedAt      pgtype.Timestamptz `json:"server_updated_at"`
+	UserID                uuid.UUID          `json:"user_id"`
+	ID                    uuid.UUID          `json:"id"`
+	ContentID             uuid.UUID          `json:"content_id"`
+	ObjectKey             string             `json:"object_key"`
+	DurationMilliseconds  int32              `json:"duration_milliseconds"`
+	ByteSize              int64              `json:"byte_size"`
+	ContentType           string             `json:"content_type"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	ServerUpdatedAt       pgtype.Timestamptz `json:"server_updated_at"`
+	Transcript            pgtype.Text        `json:"transcript"`
+	MatchedKeywords       []string           `json:"matched_keywords"`
+	KeywordCount          int32              `json:"keyword_count"`
+	WordCount             int32              `json:"word_count"`
+	CompletionScore       int32              `json:"completion_score"`
+	ReviewClientUpdatedAt pgtype.Timestamptz `json:"review_client_updated_at"`
 }
 
 type Series struct {

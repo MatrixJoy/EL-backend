@@ -124,7 +124,7 @@ func (q *Queries) DeleteVocabularyEntry(ctx context.Context, arg DeleteVocabular
 }
 
 const getRetellAttempt = `-- name: GetRetellAttempt :one
-SELECT user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at, server_updated_at FROM retell_attempts WHERE user_id = $1 AND id = $2
+SELECT user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at, server_updated_at, transcript, matched_keywords, keyword_count, word_count, completion_score, review_client_updated_at FROM retell_attempts WHERE user_id = $1 AND id = $2
 `
 
 type GetRetellAttemptParams struct {
@@ -145,6 +145,12 @@ func (q *Queries) GetRetellAttempt(ctx context.Context, arg GetRetellAttemptPara
 		&i.ContentType,
 		&i.CreatedAt,
 		&i.ServerUpdatedAt,
+		&i.Transcript,
+		&i.MatchedKeywords,
+		&i.KeywordCount,
+		&i.WordCount,
+		&i.CompletionScore,
+		&i.ReviewClientUpdatedAt,
 	)
 	return i, err
 }
@@ -265,7 +271,7 @@ func (q *Queries) ListProgress(ctx context.Context, userID uuid.UUID) ([]Learnin
 }
 
 const listRetellAttempts = `-- name: ListRetellAttempts :many
-SELECT user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at, server_updated_at FROM retell_attempts
+SELECT user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at, server_updated_at, transcript, matched_keywords, keyword_count, word_count, completion_score, review_client_updated_at FROM retell_attempts
 WHERE user_id = $1
   AND ($2::uuid IS NULL OR content_id = $2)
 ORDER BY created_at DESC
@@ -295,6 +301,12 @@ func (q *Queries) ListRetellAttempts(ctx context.Context, arg ListRetellAttempts
 			&i.ContentType,
 			&i.CreatedAt,
 			&i.ServerUpdatedAt,
+			&i.Transcript,
+			&i.MatchedKeywords,
+			&i.KeywordCount,
+			&i.WordCount,
+			&i.CompletionScore,
+			&i.ReviewClientUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -398,6 +410,77 @@ type RecordAppleIdentityTokenUseParams struct {
 func (q *Queries) RecordAppleIdentityTokenUse(ctx context.Context, arg RecordAppleIdentityTokenUseParams) error {
 	_, err := q.db.Exec(ctx, recordAppleIdentityTokenUse, arg.TokenHash, arg.UserID)
 	return err
+}
+
+const updateRetellReview = `-- name: UpdateRetellReview :one
+UPDATE retell_attempts
+SET transcript = CASE
+        WHEN review_client_updated_at <= $1 THEN $2
+        ELSE transcript
+    END,
+    matched_keywords = CASE
+        WHEN review_client_updated_at <= $1 THEN $3
+        ELSE matched_keywords
+    END,
+    keyword_count = CASE
+        WHEN review_client_updated_at <= $1 THEN $4
+        ELSE keyword_count
+    END,
+    word_count = CASE
+        WHEN review_client_updated_at <= $1 THEN $5
+        ELSE word_count
+    END,
+    completion_score = CASE
+        WHEN review_client_updated_at <= $1 THEN $6
+        ELSE completion_score
+    END,
+    review_client_updated_at = GREATEST(review_client_updated_at, $1),
+    server_updated_at = now()
+WHERE user_id = $7 AND id = $8
+RETURNING user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at, server_updated_at, transcript, matched_keywords, keyword_count, word_count, completion_score, review_client_updated_at
+`
+
+type UpdateRetellReviewParams struct {
+	ClientUpdatedAt pgtype.Timestamptz `json:"client_updated_at"`
+	Transcript      pgtype.Text        `json:"transcript"`
+	MatchedKeywords []string           `json:"matched_keywords"`
+	KeywordCount    int32              `json:"keyword_count"`
+	WordCount       int32              `json:"word_count"`
+	CompletionScore int32              `json:"completion_score"`
+	UserID          uuid.UUID          `json:"user_id"`
+	ID              uuid.UUID          `json:"id"`
+}
+
+func (q *Queries) UpdateRetellReview(ctx context.Context, arg UpdateRetellReviewParams) (RetellAttempt, error) {
+	row := q.db.QueryRow(ctx, updateRetellReview,
+		arg.ClientUpdatedAt,
+		arg.Transcript,
+		arg.MatchedKeywords,
+		arg.KeywordCount,
+		arg.WordCount,
+		arg.CompletionScore,
+		arg.UserID,
+		arg.ID,
+	)
+	var i RetellAttempt
+	err := row.Scan(
+		&i.UserID,
+		&i.ID,
+		&i.ContentID,
+		&i.ObjectKey,
+		&i.DurationMilliseconds,
+		&i.ByteSize,
+		&i.ContentType,
+		&i.CreatedAt,
+		&i.ServerUpdatedAt,
+		&i.Transcript,
+		&i.MatchedKeywords,
+		&i.KeywordCount,
+		&i.WordCount,
+		&i.CompletionScore,
+		&i.ReviewClientUpdatedAt,
+	)
+	return i, err
 }
 
 const updateVocabularyReview = `-- name: UpdateVocabularyReview :one
@@ -607,7 +690,7 @@ SET content_id = EXCLUDED.content_id,
     content_type = EXCLUDED.content_type,
     created_at = EXCLUDED.created_at,
     server_updated_at = now()
-RETURNING user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at, server_updated_at
+RETURNING user_id, id, content_id, object_key, duration_milliseconds, byte_size, content_type, created_at, server_updated_at, transcript, matched_keywords, keyword_count, word_count, completion_score, review_client_updated_at
 `
 
 type UpsertRetellAttemptParams struct {
@@ -643,6 +726,12 @@ func (q *Queries) UpsertRetellAttempt(ctx context.Context, arg UpsertRetellAttem
 		&i.ContentType,
 		&i.CreatedAt,
 		&i.ServerUpdatedAt,
+		&i.Transcript,
+		&i.MatchedKeywords,
+		&i.KeywordCount,
+		&i.WordCount,
+		&i.CompletionScore,
+		&i.ReviewClientUpdatedAt,
 	)
 	return i, err
 }

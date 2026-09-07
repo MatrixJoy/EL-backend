@@ -12,6 +12,7 @@ sql:
       - db/migrations/000009_dictionary.up.sql
       - db/migrations/000010_grammar_attempts.up.sql
       - db/migrations/000011_vocabulary_review.up.sql
+      - db/migrations/000012_retell_reviews.up.sql
     queries: db/queries
     gen:
       go:
