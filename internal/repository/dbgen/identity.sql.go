@@ -344,9 +344,9 @@ func (q *Queries) ListUserEventsAfter(ctx context.Context, arg ListUserEventsAft
 }
 
 const listVocabularyEntries = `-- name: ListVocabularyEntries :many
-SELECT id, user_id, word, normalized_word, definition, sentence_context, content_id, content_title, created_at, updated_at FROM vocabulary_entries
+SELECT id, user_id, word, normalized_word, definition, sentence_context, content_id, content_title, created_at, updated_at, review_stage, review_count, lapse_count, review_due_at, last_reviewed_at, review_client_updated_at FROM vocabulary_entries
 WHERE user_id = $1
-ORDER BY updated_at DESC, word
+ORDER BY review_due_at, updated_at DESC, word
 `
 
 func (q *Queries) ListVocabularyEntries(ctx context.Context, userID uuid.UUID) ([]VocabularyEntry, error) {
@@ -369,6 +369,12 @@ func (q *Queries) ListVocabularyEntries(ctx context.Context, userID uuid.UUID) (
 			&i.ContentTitle,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ReviewStage,
+			&i.ReviewCount,
+			&i.LapseCount,
+			&i.ReviewDueAt,
+			&i.LastReviewedAt,
+			&i.ReviewClientUpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -392,6 +398,77 @@ type RecordAppleIdentityTokenUseParams struct {
 func (q *Queries) RecordAppleIdentityTokenUse(ctx context.Context, arg RecordAppleIdentityTokenUseParams) error {
 	_, err := q.db.Exec(ctx, recordAppleIdentityTokenUse, arg.TokenHash, arg.UserID)
 	return err
+}
+
+const updateVocabularyReview = `-- name: UpdateVocabularyReview :one
+UPDATE vocabulary_entries
+SET review_stage = CASE
+        WHEN review_client_updated_at <= $1 THEN $2
+        ELSE review_stage
+    END,
+    review_count = CASE
+        WHEN review_client_updated_at <= $1 THEN $3
+        ELSE review_count
+    END,
+    lapse_count = CASE
+        WHEN review_client_updated_at <= $1 THEN $4
+        ELSE lapse_count
+    END,
+    review_due_at = CASE
+        WHEN review_client_updated_at <= $1 THEN $5
+        ELSE review_due_at
+    END,
+    last_reviewed_at = CASE
+        WHEN review_client_updated_at <= $1 THEN $6
+        ELSE last_reviewed_at
+    END,
+    review_client_updated_at = GREATEST(review_client_updated_at, $1)
+WHERE user_id = $7 AND id = $8
+RETURNING id, user_id, word, normalized_word, definition, sentence_context, content_id, content_title, created_at, updated_at, review_stage, review_count, lapse_count, review_due_at, last_reviewed_at, review_client_updated_at
+`
+
+type UpdateVocabularyReviewParams struct {
+	ClientUpdatedAt pgtype.Timestamptz `json:"client_updated_at"`
+	Stage           int32              `json:"stage"`
+	ReviewCount     int32              `json:"review_count"`
+	LapseCount      int32              `json:"lapse_count"`
+	DueAt           pgtype.Timestamptz `json:"due_at"`
+	LastReviewedAt  pgtype.Timestamptz `json:"last_reviewed_at"`
+	UserID          uuid.UUID          `json:"user_id"`
+	ID              uuid.UUID          `json:"id"`
+}
+
+func (q *Queries) UpdateVocabularyReview(ctx context.Context, arg UpdateVocabularyReviewParams) (VocabularyEntry, error) {
+	row := q.db.QueryRow(ctx, updateVocabularyReview,
+		arg.ClientUpdatedAt,
+		arg.Stage,
+		arg.ReviewCount,
+		arg.LapseCount,
+		arg.DueAt,
+		arg.LastReviewedAt,
+		arg.UserID,
+		arg.ID,
+	)
+	var i VocabularyEntry
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Word,
+		&i.NormalizedWord,
+		&i.Definition,
+		&i.SentenceContext,
+		&i.ContentID,
+		&i.ContentTitle,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ReviewStage,
+		&i.ReviewCount,
+		&i.LapseCount,
+		&i.ReviewDueAt,
+		&i.LastReviewedAt,
+		&i.ReviewClientUpdatedAt,
+	)
+	return i, err
 }
 
 const upsertAppleUser = `-- name: UpsertAppleUser :one
@@ -591,7 +668,7 @@ SET word = EXCLUDED.word,
     content_title = COALESCE(EXCLUDED.content_title, vocabulary_entries.content_title),
     created_at = LEAST(vocabulary_entries.created_at, EXCLUDED.created_at),
     updated_at = now()
-RETURNING id, user_id, word, normalized_word, definition, sentence_context, content_id, content_title, created_at, updated_at
+RETURNING id, user_id, word, normalized_word, definition, sentence_context, content_id, content_title, created_at, updated_at, review_stage, review_count, lapse_count, review_due_at, last_reviewed_at, review_client_updated_at
 `
 
 type UpsertVocabularyEntryParams struct {
@@ -630,6 +707,12 @@ func (q *Queries) UpsertVocabularyEntry(ctx context.Context, arg UpsertVocabular
 		&i.ContentTitle,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReviewStage,
+		&i.ReviewCount,
+		&i.LapseCount,
+		&i.ReviewDueAt,
+		&i.LastReviewedAt,
+		&i.ReviewClientUpdatedAt,
 	)
 	return i, err
 }

@@ -40,6 +40,7 @@
 | DELETE | `/me/retell-attempts/{attemptId}` | 同时删除对象存储文件与录音记录 |
 | GET | `/me/vocabulary` | 获取当前用户的生词本 |
 | PUT | `/me/vocabulary/{entryId}` | 幂等保存生词、释义、原句和文章来源 |
+| PUT | `/me/vocabulary/{entryId}/review` | 按客户端更新时间幂等保存间隔复习状态 |
 | DELETE | `/me/vocabulary/{entryId}` | 删除生词 |
 | DELETE | `/me` | 删除账号与关联个人数据 |
 

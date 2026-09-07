@@ -445,14 +445,20 @@ type UserEvent struct {
 }
 
 type VocabularyEntry struct {
-	ID              uuid.UUID          `json:"id"`
-	UserID          uuid.UUID          `json:"user_id"`
-	Word            string             `json:"word"`
-	NormalizedWord  string             `json:"normalized_word"`
-	Definition      pgtype.Text        `json:"definition"`
-	SentenceContext pgtype.Text        `json:"sentence_context"`
-	ContentID       pgtype.UUID        `json:"content_id"`
-	ContentTitle    pgtype.Text        `json:"content_title"`
-	CreatedAt       pgtype.Timestamptz `json:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `json:"updated_at"`
+	ID                    uuid.UUID          `json:"id"`
+	UserID                uuid.UUID          `json:"user_id"`
+	Word                  string             `json:"word"`
+	NormalizedWord        string             `json:"normalized_word"`
+	Definition            pgtype.Text        `json:"definition"`
+	SentenceContext       pgtype.Text        `json:"sentence_context"`
+	ContentID             pgtype.UUID        `json:"content_id"`
+	ContentTitle          pgtype.Text        `json:"content_title"`
+	CreatedAt             pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt             pgtype.Timestamptz `json:"updated_at"`
+	ReviewStage           int32              `json:"review_stage"`
+	ReviewCount           int32              `json:"review_count"`
+	LapseCount            int32              `json:"lapse_count"`
+	ReviewDueAt           pgtype.Timestamptz `json:"review_due_at"`
+	LastReviewedAt        pgtype.Timestamptz `json:"last_reviewed_at"`
+	ReviewClientUpdatedAt pgtype.Timestamptz `json:"review_client_updated_at"`
 }

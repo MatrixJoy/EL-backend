@@ -69,7 +69,33 @@ RETURNING *;
 -- name: ListVocabularyEntries :many
 SELECT * FROM vocabulary_entries
 WHERE user_id = $1
-ORDER BY updated_at DESC, word;
+ORDER BY review_due_at, updated_at DESC, word;
+
+-- name: UpdateVocabularyReview :one
+UPDATE vocabulary_entries
+SET review_stage = CASE
+        WHEN review_client_updated_at <= sqlc.arg('client_updated_at') THEN sqlc.arg('stage')
+        ELSE review_stage
+    END,
+    review_count = CASE
+        WHEN review_client_updated_at <= sqlc.arg('client_updated_at') THEN sqlc.arg('review_count')
+        ELSE review_count
+    END,
+    lapse_count = CASE
+        WHEN review_client_updated_at <= sqlc.arg('client_updated_at') THEN sqlc.arg('lapse_count')
+        ELSE lapse_count
+    END,
+    review_due_at = CASE
+        WHEN review_client_updated_at <= sqlc.arg('client_updated_at') THEN sqlc.arg('due_at')
+        ELSE review_due_at
+    END,
+    last_reviewed_at = CASE
+        WHEN review_client_updated_at <= sqlc.arg('client_updated_at') THEN sqlc.narg('last_reviewed_at')
+        ELSE last_reviewed_at
+    END,
+    review_client_updated_at = GREATEST(review_client_updated_at, sqlc.arg('client_updated_at'))
+WHERE user_id = sqlc.arg('user_id') AND id = sqlc.arg('id')
+RETURNING *;
 
 -- name: DeleteVocabularyEntry :exec
 DELETE FROM vocabulary_entries WHERE user_id = $1 AND id = $2;

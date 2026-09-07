@@ -51,6 +51,7 @@ type Querier interface {
 	SearchPublishedContents(ctx context.Context, arg SearchPublishedContentsParams) ([]SearchPublishedContentsRow, error)
 	SetContentStatus(ctx context.Context, arg SetContentStatusParams) (Content, error)
 	SetSourceFetchState(ctx context.Context, arg SetSourceFetchStateParams) error
+	UpdateVocabularyReview(ctx context.Context, arg UpdateVocabularyReviewParams) (VocabularyEntry, error)
 	UpsertAppleUser(ctx context.Context, appleSubject string) (User, error)
 	UpsertAsset(ctx context.Context, arg UpsertAssetParams) (Asset, error)
 	UpsertBookmark(ctx context.Context, arg UpsertBookmarkParams) error

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: English Learning App API
-  version: 0.4.0
+  version: 0.5.0
   description: Anonymous-first mobile API with source attribution on every published item.
 servers:
   - url: /api/v1
@@ -128,6 +128,19 @@ paths:
       operationId: deleteVocabularyEntry
       security: [{bearerAuth: []}]
       responses: {"204": {description: Vocabulary entry deleted}, "401": {$ref: "#/components/responses/Error"}}
+  /me/vocabulary/{entryId}/review:
+    parameters:
+      - {name: entryId, in: path, required: true, schema: {type: string, format: uuid}}
+    put:
+      operationId: reviewVocabularyEntry
+      description: Idempotently updates spaced-repetition state using the latest client timestamp.
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/VocabularyReview"}
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "400": {$ref: "#/components/responses/Error"}, "401": {$ref: "#/components/responses/Error"}, "404": {$ref: "#/components/responses/Error"}}
   /me/grammar-attempts:
     get:
       operationId: listGrammarAttempts
@@ -271,6 +284,17 @@ components:
         contentId: {type: string, format: uuid}
         contentTitle: {type: string, maxLength: 300}
         createdAt: {type: string, format: date-time}
+        review: {$ref: "#/components/schemas/VocabularyReview"}
+    VocabularyReview:
+      type: object
+      required: [stage, reviewCount, lapseCount, dueAt, updatedAt]
+      properties:
+        stage: {type: integer, minimum: 0, maximum: 6}
+        reviewCount: {type: integer, minimum: 0}
+        lapseCount: {type: integer, minimum: 0}
+        dueAt: {type: string, format: date-time}
+        lastReviewedAt: {type: string, format: date-time, nullable: true}
+        updatedAt: {type: string, format: date-time}
     GrammarAttemptInput:
       type: object
       required: [contentId, contentTitle, correctCount, questionCount, createdAt]

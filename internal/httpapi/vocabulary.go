@@ -45,6 +45,32 @@ func mountVocabularyRoutes(r chi.Router, service *identity.Service) {
 		writeJSON(w, http.StatusOK, map[string]any{"data": vocabularyResponse(row)})
 	})
 
+	r.Put("/me/vocabulary/{entryId}/review", func(w http.ResponseWriter, request *http.Request) {
+		entryID, err := uuid.Parse(chi.URLParam(request, "entryId"))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", request)
+			return
+		}
+		var body identity.VocabularyReviewInput
+		if json.NewDecoder(http.MaxBytesReader(w, request.Body, 8<<10)).Decode(&body) != nil {
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", request)
+			return
+		}
+		row, err := service.SetVocabularyReview(request.Context(), currentUser(request).ID, entryID, body)
+		switch {
+		case errors.Is(err, identity.ErrInvalidVocabularyReview):
+			writeError(w, http.StatusBadRequest, "VALIDATION_ERROR", request)
+			return
+		case errors.Is(err, identity.ErrVocabularyNotFound):
+			writeError(w, http.StatusNotFound, "VOCABULARY_NOT_FOUND", request)
+			return
+		case err != nil:
+			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", request)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"data": vocabularyResponse(row)})
+	})
+
 	r.Delete("/me/vocabulary/{entryId}", func(w http.ResponseWriter, request *http.Request) {
 		entryID, err := uuid.Parse(chi.URLParam(request, "entryId"))
 		if err != nil {
@@ -91,5 +117,13 @@ func vocabularyResponse(row dbgen.VocabularyEntry) map[string]any {
 		"contentTitle": contentTitle,
 		"createdAt":    row.CreatedAt.Time.UTC(),
 		"updatedAt":    row.UpdatedAt.Time.UTC(),
+		"review": map[string]any{
+			"stage":          row.ReviewStage,
+			"reviewCount":    row.ReviewCount,
+			"lapseCount":     row.LapseCount,
+			"dueAt":          row.ReviewDueAt.Time.UTC(),
+			"lastReviewedAt": nullableTime(row.LastReviewedAt),
+			"updatedAt":      row.ReviewClientUpdatedAt.Time.UTC(),
+		},
 	}
 }
