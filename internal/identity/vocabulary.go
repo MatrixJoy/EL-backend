@@ -82,7 +82,7 @@ func (s *Service) SetVocabularyReview(ctx context.Context, userID, entryID uuid.
 	if err != nil {
 		return row, err
 	}
-	if _, err = q.CreateUserEvent(ctx, dbgen.CreateUserEventParams{UserID: userID, EntityType: "vocabulary", EntityID: entryID, Operation: "review"}); err != nil {
+	if _, err = q.CreateUserEvent(ctx, dbgen.CreateUserEventParams{UserID: userID, EntityType: "vocabulary", EntityID: entryID, Operation: "upsert"}); err != nil {
 		return row, err
 	}
 	return row, tx.Commit(ctx)
