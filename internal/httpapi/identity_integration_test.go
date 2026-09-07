@@ -61,12 +61,24 @@ func TestIdentityHTTPFlow(t *testing.T) {
 	if progress.Code != http.StatusNoContent {
 		t.Fatalf("progress=%d %s", progress.Code, progress.Body.String())
 	}
+	attemptID := uuid.New()
+	grammarBody := bytes.NewBufferString(`{"contentId":"` + contentID.String() + `","contentTitle":"Grammar lesson","correctCount":2,"questionCount":3,"createdAt":"2026-09-01T00:00:00Z"}`)
+	grammarRequest := httptest.NewRequest(http.MethodPut, "/api/v1/me/grammar-attempts/"+attemptID.String(), grammarBody)
+	grammarRequest.Header.Set("Authorization", "Bearer "+envelope.Data.AccessToken)
+	grammar := httptest.NewRecorder()
+	router.ServeHTTP(grammar, grammarRequest)
+	if grammar.Code != http.StatusOK {
+		t.Fatalf("grammar=%d %s", grammar.Code, grammar.Body.String())
+	}
 	meRequest := httptest.NewRequest(http.MethodGet, "/api/v1/me", nil)
 	meRequest.Header.Set("Authorization", "Bearer "+envelope.Data.AccessToken)
 	me := httptest.NewRecorder()
 	router.ServeHTTP(me, meRequest)
 	if me.Code != 200 {
 		t.Fatalf("me=%d", me.Code)
+	}
+	if !bytes.Contains(me.Body.Bytes(), []byte(attemptID.String())) {
+		t.Fatalf("me response missing grammar attempt: %s", me.Body.String())
 	}
 	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/me", nil)
 	deleteRequest.Header.Set("Authorization", "Bearer "+envelope.Data.AccessToken)

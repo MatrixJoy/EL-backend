@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,16 +23,27 @@ type ProgressInput struct {
 	Completed       bool      `json:"completed"`
 	ClientUpdatedAt time.Time `json:"clientUpdatedAt"`
 }
+type GrammarAttemptInput struct {
+	ID            uuid.UUID `json:"id"`
+	ContentID     uuid.UUID `json:"contentId"`
+	ContentTitle  string    `json:"contentTitle"`
+	CorrectCount  int32     `json:"correctCount"`
+	QuestionCount int32     `json:"questionCount"`
+	CreatedAt     time.Time `json:"createdAt"`
+}
 type MigrationInput struct {
-	Bookmarks  []uuid.UUID       `json:"bookmarks"`
-	Progress   []ProgressInput   `json:"progress"`
-	Vocabulary []VocabularyInput `json:"vocabulary"`
+	Bookmarks       []uuid.UUID           `json:"bookmarks"`
+	Progress        []ProgressInput       `json:"progress"`
+	Vocabulary      []VocabularyInput     `json:"vocabulary"`
+	GrammarAttempts []GrammarAttemptInput `json:"grammarAttempts"`
 }
 type LoginResult struct {
 	UserID      uuid.UUID `json:"userId"`
 	AccessToken string    `json:"accessToken"`
 	ExpiresAt   time.Time `json:"expiresAt"`
 }
+
+var ErrInvalidGrammarAttempt = errors.New("invalid grammar attempt")
 
 type Service struct {
 	pool       *pgxpool.Pool
@@ -87,6 +100,11 @@ func (s *Service) createLogin(ctx context.Context, subject string, identityToken
 	}
 	for _, entry := range migration.Vocabulary {
 		if _, err := upsertVocabulary(ctx, q, user.ID, entry); err != nil {
+			return LoginResult{}, err
+		}
+	}
+	for _, attempt := range migration.GrammarAttempts {
+		if _, err := upsertGrammarAttempt(ctx, q, user.ID, attempt); err != nil {
 			return LoginResult{}, err
 		}
 	}
@@ -156,6 +174,49 @@ func upsertProgress(ctx context.Context, q *dbgen.Queries, userID uuid.UUID, inp
 	}
 	_, err = q.CreateUserEvent(ctx, dbgen.CreateUserEventParams{UserID: userID, EntityType: "progress", EntityID: input.ContentID, Operation: "upsert"})
 	return row, err
+}
+
+func (s *Service) SetGrammarAttempt(ctx context.Context, userID uuid.UUID, input GrammarAttemptInput) (dbgen.GrammarAttempt, error) {
+	if err := validateGrammarAttempt(input); err != nil {
+		return dbgen.GrammarAttempt{}, err
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return dbgen.GrammarAttempt{}, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	row, err := upsertGrammarAttempt(ctx, dbgen.New(tx), userID, input)
+	if err != nil {
+		return row, err
+	}
+	return row, tx.Commit(ctx)
+}
+
+func upsertGrammarAttempt(ctx context.Context, q *dbgen.Queries, userID uuid.UUID, input GrammarAttemptInput) (dbgen.GrammarAttempt, error) {
+	if err := validateGrammarAttempt(input); err != nil {
+		return dbgen.GrammarAttempt{}, err
+	}
+	row, err := q.UpsertGrammarAttempt(ctx, dbgen.UpsertGrammarAttemptParams{
+		UserID: userID, ID: input.ID, ContentID: input.ContentID, ContentTitle: strings.TrimSpace(input.ContentTitle),
+		CorrectCount: input.CorrectCount, QuestionCount: input.QuestionCount,
+		CreatedAt: pgtype.Timestamptz{Time: input.CreatedAt, Valid: true},
+	})
+	if err != nil {
+		return row, err
+	}
+	_, err = q.CreateUserEvent(ctx, dbgen.CreateUserEventParams{UserID: userID, EntityType: "grammarAttempt", EntityID: input.ID, Operation: "upsert"})
+	return row, err
+}
+
+func validateGrammarAttempt(input GrammarAttemptInput) error {
+	title := strings.TrimSpace(input.ContentTitle)
+	if input.ID == uuid.Nil || input.ContentID == uuid.Nil || input.CreatedAt.IsZero() || title == "" ||
+		input.QuestionCount < 1 || input.QuestionCount > 100 ||
+		input.CorrectCount < 0 || input.CorrectCount > input.QuestionCount ||
+		len(title) > 300 {
+		return ErrInvalidGrammarAttempt
+	}
+	return nil
 }
 
 func (s *Service) DeleteUser(ctx context.Context, userID uuid.UUID) error {

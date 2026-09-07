@@ -198,6 +198,41 @@ func (q *Queries) ListBookmarks(ctx context.Context, userID uuid.UUID) ([]ListBo
 	return items, nil
 }
 
+const listGrammarAttempts = `-- name: ListGrammarAttempts :many
+SELECT user_id, id, content_id, content_title, correct_count, question_count, created_at, updated_at FROM grammar_attempts
+WHERE user_id = $1
+ORDER BY created_at DESC, id
+`
+
+func (q *Queries) ListGrammarAttempts(ctx context.Context, userID uuid.UUID) ([]GrammarAttempt, error) {
+	rows, err := q.db.Query(ctx, listGrammarAttempts, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GrammarAttempt{}
+	for rows.Next() {
+		var i GrammarAttempt
+		if err := rows.Scan(
+			&i.UserID,
+			&i.ID,
+			&i.ContentID,
+			&i.ContentTitle,
+			&i.CorrectCount,
+			&i.QuestionCount,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProgress = `-- name: ListProgress :many
 SELECT user_id, content_id, position_seconds, completed, client_updated_at, server_updated_at FROM learning_progress WHERE user_id = $1 ORDER BY server_updated_at DESC
 `
@@ -390,6 +425,58 @@ type UpsertBookmarkParams struct {
 func (q *Queries) UpsertBookmark(ctx context.Context, arg UpsertBookmarkParams) error {
 	_, err := q.db.Exec(ctx, upsertBookmark, arg.UserID, arg.ContentID)
 	return err
+}
+
+const upsertGrammarAttempt = `-- name: UpsertGrammarAttempt :one
+INSERT INTO grammar_attempts (
+    user_id, id, content_id, content_title, correct_count, question_count, created_at
+) VALUES (
+    $1, $2, $3,
+    $4, $5,
+    $6, $7
+)
+ON CONFLICT (user_id, id) DO UPDATE
+SET content_id = EXCLUDED.content_id,
+    content_title = EXCLUDED.content_title,
+    correct_count = EXCLUDED.correct_count,
+    question_count = EXCLUDED.question_count,
+    created_at = EXCLUDED.created_at,
+    updated_at = now()
+RETURNING user_id, id, content_id, content_title, correct_count, question_count, created_at, updated_at
+`
+
+type UpsertGrammarAttemptParams struct {
+	UserID        uuid.UUID          `json:"user_id"`
+	ID            uuid.UUID          `json:"id"`
+	ContentID     uuid.UUID          `json:"content_id"`
+	ContentTitle  string             `json:"content_title"`
+	CorrectCount  int32              `json:"correct_count"`
+	QuestionCount int32              `json:"question_count"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+}
+
+func (q *Queries) UpsertGrammarAttempt(ctx context.Context, arg UpsertGrammarAttemptParams) (GrammarAttempt, error) {
+	row := q.db.QueryRow(ctx, upsertGrammarAttempt,
+		arg.UserID,
+		arg.ID,
+		arg.ContentID,
+		arg.ContentTitle,
+		arg.CorrectCount,
+		arg.QuestionCount,
+		arg.CreatedAt,
+	)
+	var i GrammarAttempt
+	err := row.Scan(
+		&i.UserID,
+		&i.ID,
+		&i.ContentID,
+		&i.ContentTitle,
+		&i.CorrectCount,
+		&i.QuestionCount,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const upsertProgress = `-- name: UpsertProgress :one

@@ -41,6 +41,8 @@ VOA_INTEGRATION_DATABASE_URL="$VOA_DATABASE_URL" make integration-test
 
 CMS 审核后的双环境发布协议见 [`docs/cms-publication.md`](docs/cms-publication.md)。测试和生产后台各自保存内容与音频，生产环境不需要连接内网内容库。
 
+账号学习数据除收藏、播放进度、单词本和复述录音外，还保存幂等的语法练习会话。匿名客户端可先在本机记录，登录时通过 migration payload 合并；登录后使用 `/api/v1/me/grammar-attempts` 跨设备同步，为后续个性化推荐提供真实学习行为。
+
 ## 测试服务器 Docker 部署
 
 完成后端开发和测试后，部署到默认测试服务器 `oldj@10.10.1.4`：

@@ -55,6 +55,7 @@ func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore
 	r.Group(func(private chi.Router) {
 		private.Use(authenticationMiddleware(service))
 		mountVocabularyRoutes(private, service)
+		mountGrammarRoutes(private, service)
 		if userMediaStore != nil {
 			mountRetellRoutes(private, service, userMediaStore)
 		}
@@ -63,6 +64,7 @@ func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore
 			bookmarks, _ := service.Queries().ListBookmarks(r.Context(), user.ID)
 			progress, _ := service.Queries().ListProgress(r.Context(), user.ID)
 			vocabulary, _ := service.Queries().ListVocabularyEntries(r.Context(), user.ID)
+			grammarAttempts, _ := service.Queries().ListGrammarAttempts(r.Context(), user.ID)
 			bookmarkItems := make([]map[string]any, 0, len(bookmarks))
 			for _, row := range bookmarks {
 				bookmarkItems = append(bookmarkItems, map[string]any{"contentId": row.ContentID, "updatedAt": row.UpdatedAt.Time.UTC()})
@@ -71,7 +73,7 @@ func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore
 			for _, row := range progress {
 				progressItems = append(progressItems, map[string]any{"contentId": row.ContentID, "positionSeconds": row.PositionSeconds, "completed": row.Completed, "clientUpdatedAt": row.ClientUpdatedAt.Time.UTC(), "serverUpdatedAt": row.ServerUpdatedAt.Time.UTC()})
 			}
-			writeJSON(w, 200, map[string]any{"data": map[string]any{"id": user.ID, "bookmarks": bookmarkItems, "progress": progressItems, "vocabulary": vocabularyResponses(vocabulary)}})
+			writeJSON(w, 200, map[string]any{"data": map[string]any{"id": user.ID, "bookmarks": bookmarkItems, "progress": progressItems, "vocabulary": vocabularyResponses(vocabulary), "grammarAttempts": grammarAttemptResponses(grammarAttempts)}})
 		})
 		private.Put("/me/bookmarks/{contentId}", bookmarkHandler(service, true))
 		private.Delete("/me/bookmarks/{contentId}", bookmarkHandler(service, false))

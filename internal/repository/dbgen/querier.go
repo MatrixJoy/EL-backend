@@ -35,6 +35,7 @@ type Querier interface {
 	ListContentAssets(ctx context.Context, contentID uuid.UUID) ([]ListContentAssetsRow, error)
 	ListContentsByStatus(ctx context.Context, arg ListContentsByStatusParams) ([]Content, error)
 	ListDictionaryFormLemmas(ctx context.Context, form string) ([]string, error)
+	ListGrammarAttempts(ctx context.Context, userID uuid.UUID) ([]GrammarAttempt, error)
 	ListProgress(ctx context.Context, userID uuid.UUID) ([]LearningProgress, error)
 	ListPublishEventsAfter(ctx context.Context, arg ListPublishEventsAfterParams) ([]PublishEvent, error)
 	ListPublishedContents(ctx context.Context, arg ListPublishedContentsParams) ([]ListPublishedContentsRow, error)
@@ -54,6 +55,7 @@ type Querier interface {
 	UpsertAsset(ctx context.Context, arg UpsertAssetParams) (Asset, error)
 	UpsertBookmark(ctx context.Context, arg UpsertBookmarkParams) error
 	UpsertContent(ctx context.Context, arg UpsertContentParams) (Content, error)
+	UpsertGrammarAttempt(ctx context.Context, arg UpsertGrammarAttemptParams) (GrammarAttempt, error)
 	UpsertProgress(ctx context.Context, arg UpsertProgressParams) (LearningProgress, error)
 	UpsertRetellAttempt(ctx context.Context, arg UpsertRetellAttemptParams) (RetellAttempt, error)
 	UpsertSeries(ctx context.Context, arg UpsertSeriesParams) (Series, error)

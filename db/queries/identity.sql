@@ -74,6 +74,28 @@ ORDER BY updated_at DESC, word;
 -- name: DeleteVocabularyEntry :exec
 DELETE FROM vocabulary_entries WHERE user_id = $1 AND id = $2;
 
+-- name: UpsertGrammarAttempt :one
+INSERT INTO grammar_attempts (
+    user_id, id, content_id, content_title, correct_count, question_count, created_at
+) VALUES (
+    sqlc.arg('user_id'), sqlc.arg('id'), sqlc.arg('content_id'),
+    sqlc.arg('content_title'), sqlc.arg('correct_count'),
+    sqlc.arg('question_count'), sqlc.arg('created_at')
+)
+ON CONFLICT (user_id, id) DO UPDATE
+SET content_id = EXCLUDED.content_id,
+    content_title = EXCLUDED.content_title,
+    correct_count = EXCLUDED.correct_count,
+    question_count = EXCLUDED.question_count,
+    created_at = EXCLUDED.created_at,
+    updated_at = now()
+RETURNING *;
+
+-- name: ListGrammarAttempts :many
+SELECT * FROM grammar_attempts
+WHERE user_id = $1
+ORDER BY created_at DESC, id;
+
 -- name: CreateUserEvent :one
 INSERT INTO user_events (user_id, entity_type, entity_id, operation)
 VALUES ($1, $2, $3, $4) RETURNING sequence;

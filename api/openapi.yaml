@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: English Learning App API
-  version: 0.2.0
+  version: 0.3.0
   description: Anonymous-first mobile API with source attribution on every published item.
 servers:
   - url: /api/v1
@@ -122,6 +122,44 @@ paths:
       operationId: deleteVocabularyEntry
       security: [{bearerAuth: []}]
       responses: {"204": {description: Vocabulary entry deleted}, "401": {$ref: "#/components/responses/Error"}}
+  /me/grammar-attempts:
+    get:
+      operationId: listGrammarAttempts
+      security: [{bearerAuth: []}]
+      responses:
+        "200":
+          description: Grammar practice sessions for the signed-in user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {type: array, items: {$ref: "#/components/schemas/GrammarAttempt"}}
+        "401": {$ref: "#/components/responses/Error"}
+  /me/grammar-attempts/{attemptId}:
+    parameters:
+      - {name: attemptId, in: path, required: true, schema: {type: string, format: uuid}}
+    put:
+      operationId: saveGrammarAttempt
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/GrammarAttemptInput"}
+      responses:
+        "200":
+          description: Idempotently saved grammar practice session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: {$ref: "#/components/schemas/GrammarAttempt"}
+        "400": {$ref: "#/components/responses/Error"}
+        "401": {$ref: "#/components/responses/Error"}
   /me/sync:
     get:
       operationId: syncUserData
@@ -227,6 +265,23 @@ components:
         contentId: {type: string, format: uuid}
         contentTitle: {type: string, maxLength: 300}
         createdAt: {type: string, format: date-time}
+    GrammarAttemptInput:
+      type: object
+      required: [contentId, contentTitle, correctCount, questionCount, createdAt]
+      properties:
+        contentId: {type: string, format: uuid}
+        contentTitle: {type: string, minLength: 1, maxLength: 300}
+        correctCount: {type: integer, minimum: 0, maximum: 100}
+        questionCount: {type: integer, minimum: 1, maximum: 100}
+        createdAt: {type: string, format: date-time}
+    GrammarAttempt:
+      allOf:
+        - {$ref: "#/components/schemas/GrammarAttemptInput"}
+        - type: object
+          required: [id, updatedAt]
+          properties:
+            id: {type: string, format: uuid}
+            updatedAt: {type: string, format: date-time}
     ErrorEnvelope:
       type: object
       required: [error]

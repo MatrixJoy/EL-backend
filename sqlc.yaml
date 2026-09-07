@@ -10,6 +10,7 @@ sql:
       - db/migrations/000007_search_content.up.sql
       - db/migrations/000008_vocabulary_book.up.sql
       - db/migrations/000009_dictionary.up.sql
+      - db/migrations/000010_grammar_attempts.up.sql
     queries: db/queries
     gen:
       go:

@@ -341,6 +341,17 @@ type DictionaryForm struct {
 	PartOfSpeech string `json:"part_of_speech"`
 }
 
+type GrammarAttempt struct {
+	UserID        uuid.UUID          `json:"user_id"`
+	ID            uuid.UUID          `json:"id"`
+	ContentID     uuid.UUID          `json:"content_id"`
+	ContentTitle  string             `json:"content_title"`
+	CorrectCount  int32              `json:"correct_count"`
+	QuestionCount int32              `json:"question_count"`
+	CreatedAt     pgtype.Timestamptz `json:"created_at"`
+	UpdatedAt     pgtype.Timestamptz `json:"updated_at"`
+}
+
 type LearningProgress struct {
 	UserID          uuid.UUID          `json:"user_id"`
 	ContentID       uuid.UUID          `json:"content_id"`
