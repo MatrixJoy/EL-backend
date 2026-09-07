@@ -41,6 +41,29 @@ func TestValidateFeaturedWords(t *testing.T) {
 	}
 }
 
+func TestValidateGrammarPoints(t *testing.T) {
+	document := validDocument()
+	document.SchemaVersion = 2
+	document.GrammarVersion = 1
+	document.GrammarPoints = []GrammarPoint{{
+		Kind: "modal", Title: "Modal verb", Explanation: "A modal expresses possibility.",
+		Example: "People can learn the process.", Prompt: "People _____ learn the process.",
+		Answer: "can", Options: []string{"can", "could", "might"},
+	}}
+	if err := validate("12345678901234567890123456789012", document); err != nil {
+		t.Fatalf("valid grammar point rejected: %v", err)
+	}
+	document.GrammarPoints[0].Answer = "must"
+	if err := validate("12345678901234567890123456789012", document); err == nil {
+		t.Fatal("grammar answer outside options accepted")
+	}
+	document.GrammarPoints[0].Answer = "can"
+	document.GrammarPoints[0].Prompt = document.GrammarPoints[0].Example
+	if err := validate("12345678901234567890123456789012", document); err == nil {
+		t.Fatal("grammar point without one blank accepted")
+	}
+}
+
 func TestSlugify(t *testing.T) {
 	if got := slugify("VOA: Everyday Grammar"); got != "voa-everyday-grammar" {
 		t.Fatalf("slugify() = %q", got)

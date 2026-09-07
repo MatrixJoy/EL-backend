@@ -39,6 +39,16 @@ type FeaturedWord struct {
 	Definition   string `json:"definition"`
 }
 
+type GrammarPoint struct {
+	Kind        string   `json:"kind"`
+	Title       string   `json:"title"`
+	Explanation string   `json:"explanation"`
+	Example     string   `json:"example"`
+	Prompt      string   `json:"prompt"`
+	Answer      string   `json:"answer"`
+	Options     []string `json:"options"`
+}
+
 type Sentence struct {
 	Text       string  `json:"text"`
 	StartMS    *int    `json:"start_ms"`
@@ -79,6 +89,8 @@ type Document struct {
 	PublishedAt     string         `json:"published_at"`
 	Paragraphs      []Paragraph    `json:"paragraphs"`
 	FeaturedWords   []FeaturedWord `json:"featured_words"`
+	GrammarVersion  int            `json:"grammar_version"`
+	GrammarPoints   []GrammarPoint `json:"grammar_points"`
 	Timeline        Timeline       `json:"timeline"`
 	Audio           Audio          `json:"audio"`
 }
@@ -222,10 +234,50 @@ func validate(key string, d Document) error {
 			return ErrInvalidDocument
 		}
 	}
+	if len(d.GrammarPoints) > 0 {
+		if d.SchemaVersion < 2 || d.GrammarVersion < 1 || len(d.GrammarPoints) > 8 {
+			return ErrInvalidDocument
+		}
+		for _, point := range d.GrammarPoints {
+			if !validGrammarPoint(point) {
+				return ErrInvalidDocument
+			}
+		}
+	}
 	if d.Audio.ByteSize <= 0 || d.Audio.ByteSize > maxAudioBytes || d.Audio.MIMEType != "audio/mpeg" || !hexSHA256.MatchString(d.Audio.SHA256) {
 		return ErrInvalidDocument
 	}
 	return nil
+}
+
+func validGrammarPoint(point GrammarPoint) bool {
+	values := []struct {
+		value string
+		max   int
+	}{
+		{point.Kind, 50}, {point.Title, 120}, {point.Explanation, 1000},
+		{point.Example, 1000}, {point.Prompt, 1000}, {point.Answer, 100},
+	}
+	for _, item := range values {
+		if strings.TrimSpace(item.value) == "" || len(item.value) > item.max {
+			return false
+		}
+	}
+	if strings.Count(point.Prompt, "_____") != 1 || point.Prompt == point.Example || len(point.Options) < 2 || len(point.Options) > 6 {
+		return false
+	}
+	answer := strings.ToLower(strings.TrimSpace(point.Answer))
+	seen := map[string]bool{}
+	foundAnswer := false
+	for _, raw := range point.Options {
+		option := strings.ToLower(strings.TrimSpace(raw))
+		if option == "" || len(option) > 100 || seen[option] {
+			return false
+		}
+		seen[option] = true
+		foundAnswer = foundAnswer || option == answer
+	}
+	return foundAnswer
 }
 
 func upsertSource(ctx context.Context, tx pgx.Tx, d Document) (uuid.UUID, error) {
@@ -239,7 +291,7 @@ func encodeContent(d Document) ([]byte, []byte, []byte, error) {
 	for _, paragraph := range d.Paragraphs {
 		body = append(body, map[string]any{"type": "paragraph", "text": paragraph.Text, "index": paragraph.Index})
 	}
-	metadata := map[string]any{"sourceContentId": d.SourceContentID, "manifestEtag": d.ManifestETag, "series": d.Series, "topics": d.Topics, "learningGoals": d.LearningGoals, "qualityScore": d.QualityScore, "wordCount": d.WordCount, "timelineVersion": d.Timeline.Version, "timelineCoverage": d.Timeline.Coverage, "featuredWords": d.FeaturedWords}
+	metadata := map[string]any{"sourceContentId": d.SourceContentID, "manifestEtag": d.ManifestETag, "series": d.Series, "topics": d.Topics, "learningGoals": d.LearningGoals, "qualityScore": d.QualityScore, "wordCount": d.WordCount, "timelineVersion": d.Timeline.Version, "timelineCoverage": d.Timeline.Coverage, "featuredWords": d.FeaturedWords, "grammarVersion": d.GrammarVersion, "grammarPoints": d.GrammarPoints}
 	bodyJSON, err := json.Marshal(body)
 	if err != nil {
 		return nil, nil, nil, err

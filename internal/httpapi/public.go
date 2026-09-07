@@ -165,13 +165,33 @@ func (h publicHandlers) content(w http.ResponseWriter, r *http.Request) {
 	if len(row.Metadata) == 0 || string(row.Metadata) == "null" {
 		metadata = json.RawMessage("{}")
 	}
-	writeJSON(w, 200, map[string]any{"data": map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "bodyBlocks": bodyBlocks, "transcriptBlocks": transcriptBlocks, "featuredWords": contentFeaturedWords(metadata, bodyBlocks), "metadata": metadata, "assets": assetDTO, "source": map[string]any{"name": row.Attribution, "canonicalUrl": row.CanonicalUrl}, "revision": row.Revision}})
+	writeJSON(w, 200, map[string]any{"data": map[string]any{"id": row.ID, "type": row.Type, "title": row.Title, "summary": textValue(row.Summary), "level": textValue(row.Level), "publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds), "bodyBlocks": bodyBlocks, "transcriptBlocks": transcriptBlocks, "featuredWords": contentFeaturedWords(metadata, bodyBlocks), "grammarPoints": contentGrammarPoints(metadata), "metadata": metadata, "assets": assetDTO, "source": map[string]any{"name": row.Attribution, "canonicalUrl": row.CanonicalUrl}, "revision": row.Revision}})
 }
 
 type featuredWordDTO struct {
 	Word         string `json:"word"`
 	PartOfSpeech string `json:"partOfSpeech,omitempty"`
 	Definition   string `json:"definition"`
+}
+
+type grammarPointDTO struct {
+	Kind        string   `json:"kind"`
+	Title       string   `json:"title"`
+	Explanation string   `json:"explanation"`
+	Example     string   `json:"example"`
+	Prompt      string   `json:"prompt"`
+	Answer      string   `json:"answer"`
+	Options     []string `json:"options"`
+}
+
+func contentGrammarPoints(metadata json.RawMessage) []grammarPointDTO {
+	var stored struct {
+		GrammarPoints []grammarPointDTO `json:"grammarPoints"`
+	}
+	if json.Unmarshal(metadata, &stored) != nil || stored.GrammarPoints == nil {
+		return []grammarPointDTO{}
+	}
+	return stored.GrammarPoints
 }
 
 var legacyFeaturedWordPattern = regexp.MustCompile(`(?i)^([[:alpha:]][[:alpha:]'’ -]{0,80}?)\s+[–—-]\s*(phr(?:asal)?\s+v|n|v|adj|adv|prep|pron)\.\s+(.+)$`)

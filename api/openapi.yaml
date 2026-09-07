@@ -24,7 +24,11 @@ paths:
         - {$ref: "#/components/parameters/ID"}
         - {name: If-None-Match, in: header, schema: {type: string}}
       responses:
-        "200": {$ref: "#/components/responses/JSONSuccess"}
+        "200":
+          description: Published content detail including optional vocabulary and grammar enrichments
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ContentDetailEnvelope"}
         "304": {description: Not modified}
         "404": {$ref: "#/components/responses/Error"}
   /contents:
@@ -181,6 +185,38 @@ components:
         application/json:
           schema: {$ref: "#/components/schemas/ErrorEnvelope"}
   schemas:
+    GrammarPoint:
+      type: object
+      required: [kind, title, explanation, example, prompt, answer, options]
+      properties:
+        kind: {type: string, minLength: 1, maxLength: 50}
+        title: {type: string, minLength: 1, maxLength: 120}
+        explanation: {type: string, minLength: 1, maxLength: 1000}
+        example: {type: string, minLength: 1, maxLength: 1000}
+        prompt: {type: string, minLength: 1, maxLength: 1000}
+        answer: {type: string, minLength: 1, maxLength: 100}
+        options:
+          type: array
+          minItems: 2
+          maxItems: 6
+          items: {type: string, minLength: 1, maxLength: 100}
+    ContentDetailEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [id, title, bodyBlocks, transcriptBlocks, featuredWords, grammarPoints, assets, source, revision]
+          properties:
+            id: {type: string, format: uuid}
+            title: {type: string}
+            bodyBlocks: {type: array, items: {type: object}}
+            transcriptBlocks: {type: array, items: {type: object}}
+            featuredWords: {type: array, items: {type: object}}
+            grammarPoints: {type: array, items: {$ref: "#/components/schemas/GrammarPoint"}}
+            assets: {type: array, items: {type: object}}
+            source: {type: object}
+            revision: {type: integer, minimum: 1}
     VocabularyInput:
       type: object
       required: [word, createdAt]

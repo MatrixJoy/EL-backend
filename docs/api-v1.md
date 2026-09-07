@@ -62,6 +62,17 @@
     "featuredWords": [
       { "word": "pest", "partOfSpeech": "noun", "definition": "an animal or insect that causes problems" }
     ],
+    "grammarPoints": [
+      {
+        "kind": "modal",
+        "title": "Modal verb",
+        "explanation": "A modal verb comes before the base form of another verb.",
+        "example": "People can learn the process quickly.",
+        "prompt": "People _____ learn the process quickly.",
+        "answer": "can",
+        "options": ["can", "could", "might"]
+      }
+    ],
     "assets": [
       {
         "id": "0190...",
