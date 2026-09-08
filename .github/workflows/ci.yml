@@ -36,7 +36,7 @@ jobs:
           curl -fsSL https://github.com/golang-migrate/migrate/releases/download/v4.19.1/migrate.linux-amd64.tar.gz | tar xz -C /tmp
           sudo install /tmp/migrate /usr/local/bin/migrate
           go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1
-          go install github.com/oasdiff/oasdiff@latest
+          go install github.com/oasdiff/oasdiff@v1.31.0
       - name: Validate migrations up and down
         run: |
           migrate -path db/migrations -database "$VOA_INTEGRATION_DATABASE_URL" up

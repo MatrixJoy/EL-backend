@@ -111,7 +111,20 @@ func (v *AppleJWTVerifier) key(ctx context.Context, kid string) (any, error) {
 			if xErr != nil || yErr != nil {
 				continue
 			}
-			v.keys[item.Kid] = &ecdsa.PublicKey{Curve: elliptic.P256(), X: new(big.Int).SetBytes(x), Y: new(big.Int).SetBytes(y)}
+			curve := elliptic.P256()
+			coordinateSize := (curve.Params().BitSize + 7) / 8
+			if len(x) > coordinateSize || len(y) > coordinateSize {
+				continue
+			}
+			encoded := make([]byte, 1+2*coordinateSize)
+			encoded[0] = 4
+			copy(encoded[1+coordinateSize-len(x):1+coordinateSize], x)
+			copy(encoded[1+2*coordinateSize-len(y):], y)
+			key, parseErr := ecdsa.ParseUncompressedPublicKey(curve, encoded)
+			if parseErr != nil {
+				continue
+			}
+			v.keys[item.Kid] = key
 		}
 	}
 	v.keysExpire = time.Now().Add(time.Hour)
