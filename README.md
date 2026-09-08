@@ -68,3 +68,26 @@ VOA_MINIO_DATA_PATH=/mnt/download/voa-learning-backend/minio
 ```
 
 Worker 每 24 小时读取 VOA 官方 sitemap 索引并增量发现完整历史内容，最新 sitemap 每 30 分钟检查一次。正文抓取默认全局间隔为 `1500ms`，可通过 `VOA_CRAWL_DELAY` 调整。所有 URL 均去重且已成功抓取的内容不会重复入队。
+
+## 生产服务器 Docker 部署
+
+生产环境使用独立 PostgreSQL、Redis 和 API 容器，媒体与用户录音保存在腾讯云 COS；API 仅加入现有 `lighttech_net` 网关网络，不在公网暴露明文端口。首次部署会从 `/opt/lighttech_deploy/.env` 读取 `COS_SECRET_ID`、`COS_SECRET_KEY`、`COS_REGION` 与 `COS_BUCKET`，并生成权限为 `600` 的 `.env.production`。后续部署不会覆盖生产密钥。
+
+```bash
+./scripts/deploy-production.sh
+```
+
+脚本默认部署到 `oldj@106.53.192.46:36987` 的 `/opt/english-learning-backend`，为 `ela.wozdou.cn` 申请并续期 Let's Encrypt 证书，最后验证公网健康检查。可通过 `LEARNING_PRODUCTION_HOST`、`LEARNING_PRODUCTION_SSH_PORT`、`LEARNING_PRODUCTION_USER`、`LEARNING_PRODUCTION_DIR` 与 `LEARNING_TLS_EMAIL` 覆盖目标。
+
+生产数据库每天生成一次自包含的 custom-format `pg_dump` 到远端 `backups/`，默认保留 14 天。恢复前应先把备份复制到另一台主机或 COS，避免主机级故障同时损坏在线数据和本机备份。
+
+首次部署后用同一个可重复执行的导入器初始化生产词典：
+
+```bash
+LEARNING_DEPLOY_HOST=106.53.192.46 \
+LEARNING_DEPLOY_SSH_PORT=36987 \
+LEARNING_DEPLOY_DIR=/opt/english-learning-backend \
+LEARNING_DEPLOY_COMPOSE_FILE=compose.production.yaml \
+LEARNING_DEPLOY_ENV_FILE=.env.production \
+./scripts/import-wordnet.sh
+```

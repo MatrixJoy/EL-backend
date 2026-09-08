@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -29,11 +30,25 @@ type ObjectInfo struct {
 }
 
 func New(endpoint, accessKey, secretKey, bucket string, useTLS bool) (*Store, error) {
-	client, err := minio.New(endpoint, &minio.Options{Creds: credentials.NewStaticV4(accessKey, secretKey, ""), Secure: useTLS})
+	options := &minio.Options{
+		Creds:        credentials.NewStaticV4(accessKey, secretKey, ""),
+		Secure:       useTLS,
+		BucketLookup: bucketLookup(endpoint),
+	}
+	client, err := minio.New(endpoint, options)
 	if err != nil {
 		return nil, fmt.Errorf("create object client: %w", err)
 	}
 	return &Store{client: client, bucket: bucket}, nil
+}
+
+func bucketLookup(endpoint string) minio.BucketLookupType {
+	if strings.HasSuffix(strings.ToLower(endpoint), ".myqcloud.com") {
+		// Tencent COS rejects path-style requests and requires
+		// <bucket>.cos.<region>.myqcloud.com virtual-host addressing.
+		return minio.BucketLookupDNS
+	}
+	return minio.BucketLookupAuto
 }
 
 func (s *Store) EnsureBucket(ctx context.Context) error {

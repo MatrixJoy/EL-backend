@@ -1,0 +1,134 @@
+name: english-learning-production
+
+x-app-environment: &app-environment
+  LEARNING_ENV: production
+  LEARNING_HTTP_ADDR: :8080
+  LEARNING_DATABASE_URL: postgres://learning:${LEARNING_POSTGRES_PASSWORD:?set LEARNING_POSTGRES_PASSWORD}@postgres:5432/english_learning?sslmode=disable
+  LEARNING_REDIS_ADDR: redis:6379
+  LEARNING_OBJECT_ENDPOINT: ${LEARNING_OBJECT_ENDPOINT:?set LEARNING_OBJECT_ENDPOINT}
+  LEARNING_OBJECT_ACCESS_KEY: ${LEARNING_OBJECT_ACCESS_KEY:?set LEARNING_OBJECT_ACCESS_KEY}
+  LEARNING_OBJECT_SECRET_KEY: ${LEARNING_OBJECT_SECRET_KEY:?set LEARNING_OBJECT_SECRET_KEY}
+  LEARNING_OBJECT_USE_TLS: "true"
+  LEARNING_OBJECT_BUCKET: ${LEARNING_OBJECT_BUCKET:?set LEARNING_OBJECT_BUCKET}
+  LEARNING_PUBLISHED_OBJECT_BUCKET: ${LEARNING_PUBLISHED_OBJECT_BUCKET:?set LEARNING_PUBLISHED_OBJECT_BUCKET}
+  LEARNING_USER_MEDIA_BUCKET: ${LEARNING_USER_MEDIA_BUCKET:?set LEARNING_USER_MEDIA_BUCKET}
+  LEARNING_APPLE_CLIENT_ID: ${LEARNING_APPLE_CLIENT_ID:-com.oldj.englishlearning}
+  LEARNING_CMS_PUBLISH_TOKEN: ${LEARNING_CMS_PUBLISH_TOKEN:?set LEARNING_CMS_PUBLISH_TOKEN}
+  LEARNING_USER_AGENT: EnglishLearningBackend/1.0 (+https://ela.wozdou.cn)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: english_learning
+      POSTGRES_USER: learning
+      POSTGRES_PASSWORD: ${LEARNING_POSTGRES_PASSWORD:?set LEARNING_POSTGRES_PASSWORD}
+    command:
+      - postgres
+      - -c
+      - max_connections=50
+      - -c
+      - shared_buffers=128MB
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U learning -d english_learning"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  migrate:
+    image: migrate/migrate:v4.18.3
+    command:
+      - -path
+      - /migrations
+      - -database
+      - postgres://learning:${LEARNING_POSTGRES_PASSWORD:?set LEARNING_POSTGRES_PASSWORD}@postgres:5432/english_learning?sslmode=disable
+      - up
+    volumes:
+      - ./db/migrations:/migrations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - noeviction
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  api:
+    image: english-learning-backend:production
+    build:
+      context: .
+      dockerfile: Dockerfile.prebuilt
+    container_name: english-learning-api
+    restart: unless-stopped
+    environment: *app-environment
+    expose:
+      - "8080"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - default
+      - public-gateway
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *logging
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGDATABASE: english_learning
+      PGUSER: learning
+      PGPASSWORD: ${LEARNING_POSTGRES_PASSWORD:?set LEARNING_POSTGRES_PASSWORD}
+      BACKUP_INTERVAL_SECONDS: ${LEARNING_BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${LEARNING_BACKUP_RETENTION_DAYS:-14}
+    entrypoint: ["/bin/sh", "/opt/backup/postgres-backup.sh"]
+    volumes:
+      - ./backups:/backups
+      - ./scripts/postgres-backup.sh:/opt/backup/postgres-backup.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  public-gateway:
+    name: lighttech_net
+    external: true

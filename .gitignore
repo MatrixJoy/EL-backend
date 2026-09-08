@@ -1,7 +1,7 @@
 .DS_Store
 .env
+.env.production
 bin/
 coverage.out
 tmp/
 fixtures/voa/live/*.html
-
