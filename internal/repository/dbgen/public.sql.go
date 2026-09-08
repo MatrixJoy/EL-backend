@@ -46,7 +46,7 @@ func (q *Queries) GetDeliverableAsset(ctx context.Context, id uuid.UUID) (Asset,
 }
 
 const getPublishedContent = `-- name: GetPublishedContent :one
-SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, s.canonical_url
+SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, c.released_at, s.canonical_url
 FROM contents c JOIN source_items s ON s.id = c.source_item_id
 WHERE c.id = $1 AND c.status = 'published'
   AND EXISTS (
@@ -77,6 +77,7 @@ type GetPublishedContentRow struct {
 	SourceUpdatedAt  pgtype.Timestamptz `json:"source_updated_at"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ReleasedAt       pgtype.Timestamptz `json:"released_at"`
 	CanonicalUrl     string             `json:"canonical_url"`
 }
 
@@ -103,6 +104,7 @@ func (q *Queries) GetPublishedContent(ctx context.Context, id uuid.UUID) (GetPub
 		&i.SourceUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReleasedAt,
 		&i.CanonicalUrl,
 	)
 	return i, err
@@ -213,7 +215,7 @@ func (q *Queries) ListCategories(ctx context.Context) ([]Category, error) {
 }
 
 const listCategoryContents = `-- name: ListCategoryContents :many
-SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, s.canonical_url
+SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, c.released_at, s.canonical_url
 FROM content_categories cc
 JOIN categories cat ON cat.id = cc.category_id
 JOIN contents c ON c.id = cc.content_id
@@ -254,6 +256,7 @@ type ListCategoryContentsRow struct {
 	SourceUpdatedAt  pgtype.Timestamptz `json:"source_updated_at"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ReleasedAt       pgtype.Timestamptz `json:"released_at"`
 	CanonicalUrl     string             `json:"canonical_url"`
 }
 
@@ -286,6 +289,7 @@ func (q *Queries) ListCategoryContents(ctx context.Context, arg ListCategoryCont
 			&i.SourceUpdatedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ReleasedAt,
 			&i.CanonicalUrl,
 		); err != nil {
 			return nil, err
@@ -415,7 +419,7 @@ func (q *Queries) ListPublishEventsAfter(ctx context.Context, arg ListPublishEve
 }
 
 const listPublishedContents = `-- name: ListPublishedContents :many
-SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, s.canonical_url
+SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, c.released_at, s.canonical_url
 FROM contents c JOIN source_items s ON s.id = c.source_item_id
 WHERE c.status = 'published'
   AND EXISTS (
@@ -425,15 +429,15 @@ WHERE c.status = 'published'
       AND a.delivery_policy = 'managed_cache' AND a.availability = 'available'
   )
   AND ($1::timestamptz IS NULL
-       OR (c.published_at, c.id) < ($1::timestamptz, $2::uuid))
-ORDER BY c.published_at DESC NULLS LAST, c.id DESC
+       OR (c.released_at, c.id) < ($1::timestamptz, $2::uuid))
+ORDER BY c.released_at DESC NULLS LAST, c.id DESC
 LIMIT $3
 `
 
 type ListPublishedContentsParams struct {
-	BeforePublishedAt pgtype.Timestamptz `json:"before_published_at"`
-	BeforeID          pgtype.UUID        `json:"before_id"`
-	PageLimit         int32              `json:"page_limit"`
+	BeforeReleasedAt pgtype.Timestamptz `json:"before_released_at"`
+	BeforeID         pgtype.UUID        `json:"before_id"`
+	PageLimit        int32              `json:"page_limit"`
 }
 
 type ListPublishedContentsRow struct {
@@ -456,11 +460,12 @@ type ListPublishedContentsRow struct {
 	SourceUpdatedAt  pgtype.Timestamptz `json:"source_updated_at"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ReleasedAt       pgtype.Timestamptz `json:"released_at"`
 	CanonicalUrl     string             `json:"canonical_url"`
 }
 
 func (q *Queries) ListPublishedContents(ctx context.Context, arg ListPublishedContentsParams) ([]ListPublishedContentsRow, error) {
-	rows, err := q.db.Query(ctx, listPublishedContents, arg.BeforePublishedAt, arg.BeforeID, arg.PageLimit)
+	rows, err := q.db.Query(ctx, listPublishedContents, arg.BeforeReleasedAt, arg.BeforeID, arg.PageLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -488,6 +493,7 @@ func (q *Queries) ListPublishedContents(ctx context.Context, arg ListPublishedCo
 			&i.SourceUpdatedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ReleasedAt,
 			&i.CanonicalUrl,
 		); err != nil {
 			return nil, err
@@ -545,7 +551,7 @@ func (q *Queries) ListSeries(ctx context.Context, limit int32) ([]Series, error)
 }
 
 const listSeriesContents = `-- name: ListSeriesContents :many
-SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, s.canonical_url, cs.position
+SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, c.released_at, s.canonical_url, cs.position
 FROM content_series cs
 JOIN contents c ON c.id = cs.content_id
 JOIN source_items s ON s.id = c.source_item_id
@@ -579,6 +585,7 @@ type ListSeriesContentsRow struct {
 	SourceUpdatedAt  pgtype.Timestamptz `json:"source_updated_at"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ReleasedAt       pgtype.Timestamptz `json:"released_at"`
 	CanonicalUrl     string             `json:"canonical_url"`
 	Position         int32              `json:"position"`
 }
@@ -612,6 +619,7 @@ func (q *Queries) ListSeriesContents(ctx context.Context, seriesID uuid.UUID) ([
 			&i.SourceUpdatedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ReleasedAt,
 			&i.CanonicalUrl,
 			&i.Position,
 		); err != nil {
@@ -626,7 +634,7 @@ func (q *Queries) ListSeriesContents(ctx context.Context, seriesID uuid.UUID) ([
 }
 
 const searchPublishedContents = `-- name: SearchPublishedContents :many
-SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, s.canonical_url,
+SELECT c.id, c.source_item_id, c.slug, c.type, c.title, c.summary, c.level, c.published_at, c.duration_seconds, c.body_blocks, c.transcript_blocks, c.metadata, c.rights_status, c.attribution, c.status, c.revision, c.source_updated_at, c.created_at, c.updated_at, c.released_at, s.canonical_url,
        ts_rank(
          to_tsvector('english', coalesce(c.title, '') || ' ' || coalesce(c.summary, '') || ' ' || coalesce(c.body_blocks::text, '') || ' ' || coalesce(c.metadata::text, '')),
          websearch_to_tsquery('english', $1)
@@ -683,6 +691,7 @@ type SearchPublishedContentsRow struct {
 	SourceUpdatedAt  pgtype.Timestamptz `json:"source_updated_at"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ReleasedAt       pgtype.Timestamptz `json:"released_at"`
 	CanonicalUrl     string             `json:"canonical_url"`
 	Rank             float32            `json:"rank"`
 }
@@ -716,6 +725,7 @@ func (q *Queries) SearchPublishedContents(ctx context.Context, arg SearchPublish
 			&i.SourceUpdatedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ReleasedAt,
 			&i.CanonicalUrl,
 			&i.Rank,
 		); err != nil {

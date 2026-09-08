@@ -37,9 +37,9 @@ WHERE c.status = 'published'
     WHERE ca.content_id = c.id AND a.kind = 'audio'
       AND a.delivery_policy = 'managed_cache' AND a.availability = 'available'
   )
-  AND (sqlc.narg(before_published_at)::timestamptz IS NULL
-       OR (c.published_at, c.id) < (sqlc.narg(before_published_at)::timestamptz, sqlc.narg(before_id)::uuid))
-ORDER BY c.published_at DESC NULLS LAST, c.id DESC
+  AND (sqlc.narg(before_released_at)::timestamptz IS NULL
+       OR (c.released_at, c.id) < (sqlc.narg(before_released_at)::timestamptz, sqlc.narg(before_id)::uuid))
+ORDER BY c.released_at DESC NULLS LAST, c.id DESC
 LIMIT sqlc.arg(page_limit);
 
 -- name: GetPublishedContent :one

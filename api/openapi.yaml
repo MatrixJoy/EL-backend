@@ -265,6 +265,7 @@ components:
         summary: {type: string, nullable: true}
         level: {type: string, enum: [beginning, intermediate, advanced], nullable: true}
         publishedAt: {type: string, format: date-time, nullable: true}
+        releasedAt: {type: string, format: date-time, nullable: true, description: Most recent time the content was released from the CMS to this environment.}
         durationSeconds: {type: integer, minimum: 0, nullable: true}
         learningGoals:
           type: array
@@ -297,6 +298,8 @@ components:
           properties:
             id: {type: string, format: uuid}
             title: {type: string}
+            publishedAt: {type: string, format: date-time, nullable: true}
+            releasedAt: {type: string, format: date-time, nullable: true}
             bodyBlocks: {type: array, items: {type: object}}
             transcriptBlocks: {type: array, items: {type: object}}
             featuredWords: {type: array, items: {type: object}}

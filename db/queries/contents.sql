@@ -1,10 +1,11 @@
 -- name: UpsertContent :one
 INSERT INTO contents (
     source_item_id, slug, type, title, level, published_at, body_blocks,
-    rights_status, attribution, status, source_updated_at
+    rights_status, attribution, status, source_updated_at, released_at
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::rights_status, $9,
     CASE WHEN $8::rights_status = 'public_domain_verified'::rights_status THEN 'published'::content_status ELSE 'review'::content_status END,
-    $6)
+    $6,
+    CASE WHEN $8::rights_status = 'public_domain_verified'::rights_status THEN now() ELSE NULL END)
 ON CONFLICT (source_item_id) DO UPDATE
 SET title = EXCLUDED.title,
     type = EXCLUDED.type,
@@ -15,6 +16,11 @@ SET title = EXCLUDED.title,
     attribution = EXCLUDED.attribution,
     status = CASE WHEN EXCLUDED.rights_status = 'public_domain_verified'
                   THEN 'published'::content_status ELSE 'review'::content_status END,
+    released_at = CASE
+        WHEN contents.status <> 'published'::content_status
+             AND EXCLUDED.status = 'published'::content_status THEN now()
+        ELSE contents.released_at
+    END,
     source_updated_at = EXCLUDED.source_updated_at,
     revision = contents.revision + 1,
     updated_at = now()
@@ -55,6 +61,13 @@ LIMIT $2;
 
 -- name: SetContentStatus :one
 UPDATE contents
-SET status = $2, revision = revision + 1, updated_at = now()
+SET status = $2,
+    released_at = CASE
+        WHEN status <> 'published'::content_status
+             AND $2 = 'published'::content_status THEN now()
+        ELSE released_at
+    END,
+    revision = revision + 1,
+    updated_at = now()
 WHERE id = $1
 RETURNING *;

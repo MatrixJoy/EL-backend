@@ -121,11 +121,11 @@ func personalizedHomeSections(contents []dbgen.ListPublishedContentsRow, progres
 		if ranked[i].score != ranked[j].score {
 			return ranked[i].score > ranked[j].score
 		}
-		if ranked[i].row.PublishedAt.Valid != ranked[j].row.PublishedAt.Valid {
-			return ranked[i].row.PublishedAt.Valid
+		if ranked[i].row.ReleasedAt.Valid != ranked[j].row.ReleasedAt.Valid {
+			return ranked[i].row.ReleasedAt.Valid
 		}
-		if ranked[i].row.PublishedAt.Valid && !ranked[i].row.PublishedAt.Time.Equal(ranked[j].row.PublishedAt.Time) {
-			return ranked[i].row.PublishedAt.Time.After(ranked[j].row.PublishedAt.Time)
+		if ranked[i].row.ReleasedAt.Valid && !ranked[i].row.ReleasedAt.Time.Equal(ranked[j].row.ReleasedAt.Time) {
+			return ranked[i].row.ReleasedAt.Time.After(ranked[j].row.ReleasedAt.Time)
 		}
 		return ranked[i].row.ID.String() < ranked[j].row.ID.String()
 	})
@@ -162,7 +162,7 @@ func recommendationSummary(row dbgen.ListPublishedContentsRow, reason string) ma
 	return map[string]any{
 		"id": row.ID, "type": row.Type, "title": row.Title,
 		"summary": textValue(row.Summary), "level": textValue(row.Level),
-		"publishedAt": nullableTime(row.PublishedAt), "durationSeconds": intValue(row.DurationSeconds),
+		"publishedAt": nullableTime(row.PublishedAt), "releasedAt": nullableTime(row.ReleasedAt), "durationSeconds": intValue(row.DurationSeconds),
 		"learningGoals": contentLearningGoals(row.Metadata), "revision": row.Revision, "recommendationReason": reason,
 	}
 }

@@ -56,6 +56,7 @@
     "summary": null,
     "level": "beginning",
     "publishedAt": "2022-07-20T00:00:00Z",
+    "releasedAt": "2026-09-08T01:17:45Z",
     "series": { "id": "018e...", "title": "Let's Learn English with Anna" },
     "bodyBlocks": [
       { "type": "heading", "text": "Lesson Plan", "level": 2 },

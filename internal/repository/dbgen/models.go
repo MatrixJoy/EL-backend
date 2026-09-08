@@ -298,6 +298,7 @@ type Content struct {
 	SourceUpdatedAt  pgtype.Timestamptz `json:"source_updated_at"`
 	CreatedAt        pgtype.Timestamptz `json:"created_at"`
 	UpdatedAt        pgtype.Timestamptz `json:"updated_at"`
+	ReleasedAt       pgtype.Timestamptz `json:"released_at"`
 }
 
 type ContentAsset struct {

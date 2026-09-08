@@ -61,7 +61,7 @@ func (q *Queries) LinkContentAsset(ctx context.Context, arg LinkContentAssetPara
 }
 
 const listContentsByStatus = `-- name: ListContentsByStatus :many
-SELECT id, source_item_id, slug, type, title, summary, level, published_at, duration_seconds, body_blocks, transcript_blocks, metadata, rights_status, attribution, status, revision, source_updated_at, created_at, updated_at FROM contents
+SELECT id, source_item_id, slug, type, title, summary, level, published_at, duration_seconds, body_blocks, transcript_blocks, metadata, rights_status, attribution, status, revision, source_updated_at, created_at, updated_at, released_at FROM contents
 WHERE status = $1
 ORDER BY updated_at DESC, id
 LIMIT $2
@@ -101,6 +101,7 @@ func (q *Queries) ListContentsByStatus(ctx context.Context, arg ListContentsBySt
 			&i.SourceUpdatedAt,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ReleasedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -114,9 +115,16 @@ func (q *Queries) ListContentsByStatus(ctx context.Context, arg ListContentsBySt
 
 const setContentStatus = `-- name: SetContentStatus :one
 UPDATE contents
-SET status = $2, revision = revision + 1, updated_at = now()
+SET status = $2,
+    released_at = CASE
+        WHEN status <> 'published'::content_status
+             AND $2 = 'published'::content_status THEN now()
+        ELSE released_at
+    END,
+    revision = revision + 1,
+    updated_at = now()
 WHERE id = $1
-RETURNING id, source_item_id, slug, type, title, summary, level, published_at, duration_seconds, body_blocks, transcript_blocks, metadata, rights_status, attribution, status, revision, source_updated_at, created_at, updated_at
+RETURNING id, source_item_id, slug, type, title, summary, level, published_at, duration_seconds, body_blocks, transcript_blocks, metadata, rights_status, attribution, status, revision, source_updated_at, created_at, updated_at, released_at
 `
 
 type SetContentStatusParams struct {
@@ -147,6 +155,7 @@ func (q *Queries) SetContentStatus(ctx context.Context, arg SetContentStatusPara
 		&i.SourceUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReleasedAt,
 	)
 	return i, err
 }
@@ -218,10 +227,11 @@ func (q *Queries) UpsertAsset(ctx context.Context, arg UpsertAssetParams) (Asset
 const upsertContent = `-- name: UpsertContent :one
 INSERT INTO contents (
     source_item_id, slug, type, title, level, published_at, body_blocks,
-    rights_status, attribution, status, source_updated_at
+    rights_status, attribution, status, source_updated_at, released_at
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8::rights_status, $9,
     CASE WHEN $8::rights_status = 'public_domain_verified'::rights_status THEN 'published'::content_status ELSE 'review'::content_status END,
-    $6)
+    $6,
+    CASE WHEN $8::rights_status = 'public_domain_verified'::rights_status THEN now() ELSE NULL END)
 ON CONFLICT (source_item_id) DO UPDATE
 SET title = EXCLUDED.title,
     type = EXCLUDED.type,
@@ -232,10 +242,15 @@ SET title = EXCLUDED.title,
     attribution = EXCLUDED.attribution,
     status = CASE WHEN EXCLUDED.rights_status = 'public_domain_verified'
                   THEN 'published'::content_status ELSE 'review'::content_status END,
+    released_at = CASE
+        WHEN contents.status <> 'published'::content_status
+             AND EXCLUDED.status = 'published'::content_status THEN now()
+        ELSE contents.released_at
+    END,
     source_updated_at = EXCLUDED.source_updated_at,
     revision = contents.revision + 1,
     updated_at = now()
-RETURNING id, source_item_id, slug, type, title, summary, level, published_at, duration_seconds, body_blocks, transcript_blocks, metadata, rights_status, attribution, status, revision, source_updated_at, created_at, updated_at
+RETURNING id, source_item_id, slug, type, title, summary, level, published_at, duration_seconds, body_blocks, transcript_blocks, metadata, rights_status, attribution, status, revision, source_updated_at, created_at, updated_at, released_at
 `
 
 type UpsertContentParams struct {
@@ -283,6 +298,7 @@ func (q *Queries) UpsertContent(ctx context.Context, arg UpsertContentParams) (C
 		&i.SourceUpdatedAt,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReleasedAt,
 	)
 	return i, err
 }

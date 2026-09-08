@@ -31,6 +31,7 @@
 - 身份：`id UUID`、`slug`、`source_item_id`、`external_id`；
 - 类型：`article | lesson | podcast | video | quiz`；
 - 展示：`title`、`summary`、`level`、`published_at`、`duration_seconds`；
+- 发布：`released_at` 记录内容最近一次经 CMS 推送到我方后台的时间，首页信息流按该字段倒序；`published_at` 始终保留源站原始发布时间；
 - 内容：`body_blocks JSONB`、`transcript_blocks JSONB`、`metadata JSONB`；
 - 状态：`draft | review | published | hidden | removed`；
 - 版本：`revision`、`source_updated_at`、`created_at`、`updated_at`。
@@ -69,7 +70,7 @@
 ## 4. 关键索引与约束
 
 - `source_items(source, canonical_url)` unique。
-- `contents(source_item_id)` unique；`contents(status, published_at desc, id)`。
+- `contents(source_item_id)` unique；`contents(status, released_at desc, id desc)` 用于我方发布时间排序的信息流。
 - `series(slug)`、`categories(slug)` unique。
 - `publish_events(sequence)` unique，sequence 单调递增。
 - 对发布内容建立 PostgreSQL `tsvector` 索引；中文辅助字段加入后再评估 PG trigram 或专用搜索服务。
