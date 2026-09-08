@@ -4,6 +4,9 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -22,9 +25,9 @@ jobs:
     env:
       VOA_INTEGRATION_DATABASE_URL: postgres://postgres:postgres@localhost:5432/voa_learning?sslmode=disable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: {fetch-depth: 0}
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
@@ -49,9 +52,9 @@ jobs:
           go test -race ./...
           go vet ./...
           go test ./internal/identity ./internal/httpapi -count=1
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.4.0
+          version: v2.13.2
       - name: Validate OpenAPI compatibility
         shell: bash
         run: |

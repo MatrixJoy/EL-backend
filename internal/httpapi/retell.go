@@ -146,7 +146,7 @@ func mountRetellRoutes(r chi.Router, service *identity.Service, store recordingO
 			writeError(w, http.StatusBadGateway, "MEDIA_STORE_UNAVAILABLE", request)
 			return
 		}
-		defer object.Close()
+		defer func() { _ = object.Close() }()
 		contentType := row.ContentType
 		if contentType == "" {
 			contentType = info.ContentType
@@ -174,7 +174,7 @@ func mountRetellRoutes(r chi.Router, service *identity.Service, store recordingO
 			writeError(w, http.StatusBadGateway, "MEDIA_STORE_UNAVAILABLE", request)
 			return
 		}
-		if _, err = service.Queries().DeleteRetellAttempt(request.Context(), dbgen.DeleteRetellAttemptParams{UserID: params.UserID, ID: params.ID}); err != nil {
+		if _, err = service.Queries().DeleteRetellAttempt(request.Context(), dbgen.DeleteRetellAttemptParams(params)); err != nil {
 			writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", request)
 			return
 		}

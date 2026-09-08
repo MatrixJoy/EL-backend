@@ -388,7 +388,7 @@ func (h publicHandlers) media(w http.ResponseWriter, r *http.Request) {
 			writeError(w, 502, "MEDIA_UNAVAILABLE", r)
 			return
 		}
-		defer object.Close()
+		defer func() { _ = object.Close() }()
 		contentType := "audio/mpeg"
 		if asset.MimeType.Valid {
 			contentType = asset.MimeType.String

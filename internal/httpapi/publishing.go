@@ -74,7 +74,7 @@ func (h publicationHandlers) publish(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"error": map[string]any{"code": "AUDIO_REQUIRED", "message": "Audio part is required"}})
 		return
 	}
-	defer audioPart.Close()
+	defer func() { _ = audioPart.Close() }()
 	result, err := h.publisher.Publish(r.Context(), r.Header.Get("Idempotency-Key"), document, audioPart)
 	if errors.Is(err, publishing.ErrInvalidDocument) {
 		writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": map[string]any{"code": "DOCUMENT_INVALID", "message": err.Error()}})

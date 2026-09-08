@@ -36,7 +36,7 @@ func ImportWordNet31(ctx context.Context, pool *pgxpool.Pool, archive io.Reader)
 	if err != nil {
 		return ImportResult{}, fmt.Errorf("open WordNet gzip: %w", err)
 	}
-	defer gzipReader.Close()
+	defer func() { _ = gzipReader.Close() }()
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return ImportResult{}, err

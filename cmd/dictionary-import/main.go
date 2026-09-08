@@ -22,7 +22,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer archive.Close()
+	defer func() { _ = archive.Close() }()
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, *databaseURL)
 	if err != nil {
