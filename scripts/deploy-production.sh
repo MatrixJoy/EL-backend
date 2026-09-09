@@ -26,13 +26,14 @@ build_dir=$(mktemp -d)
 trap 'rm -rf "$build_dir"' EXIT
 CGO_ENABLED=0 GOOS=linux GOARCH="$remote_goarch" go build -trimpath -ldflags="-s -w" -o "$build_dir/api" ./cmd/api
 CGO_ENABLED=0 GOOS=linux GOARCH="$remote_goarch" go build -trimpath -ldflags="-s -w" -o "$build_dir/worker" ./cmd/worker
+CGO_ENABLED=0 GOOS=linux GOARCH="$remote_goarch" go build -trimpath -ldflags="-s -w" -o "$build_dir/admin" ./cmd/admin
 
 $ssh_command "$target" "sudo -n mkdir -p '$deploy_dir' && sudo -n chown '$deploy_user' '$deploy_dir' && mkdir -p '$deploy_dir/.deploy' '$deploy_dir/backups'"
 rsync -az --delete -e "$rsync_shell" \
   --exclude .git --exclude .env --exclude .env.production --exclude .deploy --exclude tmp --exclude coverage.out \
   --exclude backups --exclude data \
   ./ "$target:$deploy_dir/"
-rsync -az -e "$rsync_shell" "$build_dir/api" "$build_dir/worker" "$target:$deploy_dir/.deploy/"
+rsync -az -e "$rsync_shell" "$build_dir/api" "$build_dir/worker" "$build_dir/admin" "$target:$deploy_dir/.deploy/"
 
 $ssh_command "$target" "cd '$deploy_dir' && chmod 700 scripts/init-production-env.sh && chmod 755 scripts/postgres-backup.sh && ./scripts/init-production-env.sh /opt/lighttech_deploy/.env .env.production && docker compose --env-file .env.production -f compose.production.yaml config -q && docker compose --env-file .env.production -f compose.production.yaml build api && docker compose --env-file .env.production -f compose.production.yaml up -d --remove-orphans"
 

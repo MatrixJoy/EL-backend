@@ -79,7 +79,7 @@ Worker 每 24 小时读取 VOA 官方 sitemap 索引并增量发现完整历史�
 
 脚本默认部署到 `oldj@106.53.192.46:36987` 的 `/opt/english-learning-backend`，为 `ela.wozdou.cn` 申请并续期 Let's Encrypt 证书，最后验证公网健康检查。可通过 `LEARNING_PRODUCTION_HOST`、`LEARNING_PRODUCTION_SSH_PORT`、`LEARNING_PRODUCTION_USER`、`LEARNING_PRODUCTION_DIR` 与 `LEARNING_TLS_EMAIL` 覆盖目标。
 
-生产数据库每天生成一次自包含的 custom-format `pg_dump` 到远端 `backups/`，默认保留 14 天。恢复前应先把备份复制到另一台主机或 COS，避免主机级故障同时损坏在线数据和本机备份。
+生产数据库每天生成一次自包含的 custom-format `pg_dump` 到远端 `backups/`，默认保留参数为 14 天。备份经过归档目录检查后才标记成功，使用私有文件权限，并通过 Docker 健康检查暴露长时间未成功的状态。异机备份仍需配置独立的复制策略；恢复/演练、私密反馈处理及首发验证见 [`docs/release-operations.md`](docs/release-operations.md)。
 
 首次部署后用同一个可重复执行的导入器初始化生产词典：
 

@@ -2,5 +2,6 @@ FROM alpine:3.22
 RUN apk add --no-cache ca-certificates tzdata && addgroup -S app && adduser -S -G app app
 COPY .deploy/api /usr/local/bin/api
 COPY .deploy/worker /usr/local/bin/worker
+COPY .deploy/admin /usr/local/bin/admin
 USER app
 ENTRYPOINT ["/usr/local/bin/api"]

@@ -23,8 +23,9 @@ if ! ssh "$target" "cd '$deploy_dir' && docker compose build api"; then
   trap 'rm -rf "$build_dir"' EXIT
   CGO_ENABLED=0 GOOS=linux GOARCH="$remote_goarch" go build -trimpath -ldflags="-s -w" -o "$build_dir/api" ./cmd/api
   CGO_ENABLED=0 GOOS=linux GOARCH="$remote_goarch" go build -trimpath -ldflags="-s -w" -o "$build_dir/worker" ./cmd/worker
+  CGO_ENABLED=0 GOOS=linux GOARCH="$remote_goarch" go build -trimpath -ldflags="-s -w" -o "$build_dir/admin" ./cmd/admin
   ssh "$target" "mkdir -p '$deploy_dir/.deploy'"
-  rsync -az "$build_dir/api" "$build_dir/worker" "$target:$deploy_dir/.deploy/"
+  rsync -az "$build_dir/api" "$build_dir/worker" "$build_dir/admin" "$target:$deploy_dir/.deploy/"
   ssh "$target" "cd '$deploy_dir' && docker build --pull=false -f Dockerfile.prebuilt -t voa-learning-backend:local ."
 fi
 
