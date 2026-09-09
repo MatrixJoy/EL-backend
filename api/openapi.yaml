@@ -6,6 +6,13 @@ info:
 servers:
   - url: /api/v1
 paths:
+  /auth/logout:
+    post:
+      operationId: logout
+      security: [{bearerAuth: []}]
+      responses:
+        "204": {description: Current session revoked}
+        "401": {$ref: "#/components/responses/Error"}
   /bootstrap:
     get: {operationId: getBootstrap, responses: {"200": {$ref: "#/components/responses/JSONSuccess"}}}
   /home:

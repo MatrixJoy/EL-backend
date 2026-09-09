@@ -58,9 +58,13 @@ func main() {
 	}
 	identityService := identity.NewService(pool, identity.NewAppleJWTVerifier(cfg.AppleClientID, nil), cfg.SessionTTL)
 	publicationService := publishing.NewService(pool, mediaStore, cfg.Environment)
+	support := func(ctx context.Context, request httpapi.SupportRequest) error {
+		_, err := pool.Exec(ctx, "INSERT INTO support_requests (id, kind, email, message) VALUES ($1,$2,$3,$4)", request.ID, request.Kind, request.Email, request.Message)
+		return err
+	}
 	server := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpapi.NewRouter(logger, httpapi.BuildInfo{Version: "dev"}, httpapi.Dependencies{Queries: dbgen.New(pool), MediaClient: mediaClient, MediaStore: mediaStore, UserMediaStore: userMediaStore, Identity: identityService, Publisher: publicationService, PublishToken: cfg.CMSPublishToken, DevelopmentAuth: cfg.Environment != "production"}),
+		Handler:           httpapi.NewRouter(logger, httpapi.BuildInfo{Version: "dev"}, httpapi.Dependencies{Support: support, Readiness: pool.Ping, Queries: dbgen.New(pool), MediaClient: mediaClient, MediaStore: mediaStore, UserMediaStore: userMediaStore, Identity: identityService, Publisher: publicationService, PublishToken: cfg.CMSPublishToken, DevelopmentAuth: cfg.Environment != "production"}),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
 	}
 

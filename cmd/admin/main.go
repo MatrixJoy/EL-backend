@@ -28,6 +28,36 @@ func main() {
 	defer pool.Close()
 	q := dbgen.New(pool)
 	switch os.Args[1] {
+	case "list-feedback":
+		rows, err := pool.Query(ctx, "SELECT id, kind, email, message FROM support_requests WHERE resolved_at IS NULL ORDER BY created_at LIMIT 100")
+		if err != nil {
+			fatal(err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var id uuid.UUID
+			var kind, email, message string
+			if err := rows.Scan(&id, &kind, &email, &message); err != nil {
+				fatal(err)
+			}
+			fmt.Printf("%s\t%s\t%q\t%q\n", id, kind, email, message)
+		}
+		if err := rows.Err(); err != nil {
+			fatal(err)
+		}
+	case "resolve-feedback":
+		if len(os.Args) != 3 {
+			usage()
+		}
+		id, err := uuid.Parse(os.Args[2])
+		if err != nil {
+			fatal(err)
+		}
+		result, err := pool.Exec(ctx, "UPDATE support_requests SET resolved_at=now() WHERE id=$1 AND resolved_at IS NULL", id)
+		if err != nil {
+			fatal(err)
+		}
+		fmt.Printf("resolved=%d\n", result.RowsAffected())
 	case "list-review":
 		items, err := q.ListContentsByStatus(ctx, dbgen.ListContentsByStatusParams{Status: dbgen.ContentStatusReview, Limit: 100})
 		if err != nil {
@@ -76,7 +106,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: admin list-review | publish <content-id> | hide <content-id>")
+	fmt.Fprintln(os.Stderr, "usage: admin list-review | publish <content-id> | hide <content-id> | list-feedback | resolve-feedback <request-id>")
 	os.Exit(2)
 }
 func fatal(err error) { fmt.Fprintln(os.Stderr, err); os.Exit(1) }

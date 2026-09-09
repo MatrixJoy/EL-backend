@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
@@ -18,6 +19,8 @@ type BuildInfo struct {
 }
 
 type Dependencies struct {
+	Readiness       func(context.Context) error
+	Support         func(context.Context, SupportRequest) error
 	Queries         *dbgen.Queries
 	MediaClient     *http.Client
 	MediaStore      *objectstore.Store
@@ -49,12 +52,22 @@ func NewRouter(logger *slog.Logger, build BuildInfo, dependencies ...Dependencie
 	router.Get("/health/live", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 	})
-	router.Get("/health/ready", func(w http.ResponseWriter, _ *http.Request) {
+	router.Get("/health/ready", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		if deps.Readiness != nil {
+			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+			defer cancel()
+			if err := deps.Readiness(ctx); err != nil {
+				writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unavailable"})
+				return
+			}
+		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"status":  "ready",
 			"version": build.Version,
 		})
 	})
+	mountInformationPages(router, deps)
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Group(func(public chi.Router) {
 			public.Use(newIPRateLimiter(publicRequestsPerMinute, publicRequestBurst).middleware)

@@ -222,4 +222,9 @@ func validateGrammarAttempt(input GrammarAttemptInput) error {
 func (s *Service) DeleteUser(ctx context.Context, userID uuid.UUID) error {
 	return dbgen.New(s.pool).DeleteUser(ctx, userID)
 }
+
+func (s *Service) Logout(ctx context.Context, token string) error {
+	hash := sha256.Sum256([]byte(token))
+	return dbgen.New(s.pool).DeleteSession(ctx, hash[:])
+}
 func (s *Service) Queries() *dbgen.Queries { return dbgen.New(s.pool) }

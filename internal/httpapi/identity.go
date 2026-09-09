@@ -18,6 +18,7 @@ type userContextKey struct{}
 
 func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore recordingObjectStore, developmentAuth bool) {
 	r.Post("/auth/apple", func(w http.ResponseWriter, request *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
 		var body struct {
 			IdentityToken string                  `json:"identityToken"`
 			Nonce         string                  `json:"nonce"`
@@ -36,6 +37,7 @@ func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore
 	})
 	if developmentAuth {
 		r.Post("/auth/development", func(w http.ResponseWriter, request *http.Request) {
+			w.Header().Set("Cache-Control", "no-store")
 			var body struct {
 				DeviceID  uuid.UUID               `json:"deviceId"`
 				Migration identity.MigrationInput `json:"migration"`
@@ -54,6 +56,13 @@ func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore
 	}
 	r.Group(func(private chi.Router) {
 		private.Use(authenticationMiddleware(service))
+		private.Post("/auth/logout", func(w http.ResponseWriter, r *http.Request) {
+			if err := service.Logout(r.Context(), strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")); err != nil {
+				writeError(w, 500, "INTERNAL_ERROR", r)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		})
 		mountVocabularyRoutes(private, service)
 		mountGrammarRoutes(private, service)
 		mountRecommendationRoutes(private, service)
@@ -62,10 +71,26 @@ func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore
 		}
 		private.Get("/me", func(w http.ResponseWriter, r *http.Request) {
 			user := currentUser(r)
-			bookmarks, _ := service.Queries().ListBookmarks(r.Context(), user.ID)
-			progress, _ := service.Queries().ListProgress(r.Context(), user.ID)
-			vocabulary, _ := service.Queries().ListVocabularyEntries(r.Context(), user.ID)
-			grammarAttempts, _ := service.Queries().ListGrammarAttempts(r.Context(), user.ID)
+			bookmarks, err := service.Queries().ListBookmarks(r.Context(), user.ID)
+			if err != nil {
+				writeError(w, 503, "SERVICE_UNAVAILABLE", r)
+				return
+			}
+			progress, err := service.Queries().ListProgress(r.Context(), user.ID)
+			if err != nil {
+				writeError(w, 503, "SERVICE_UNAVAILABLE", r)
+				return
+			}
+			vocabulary, err := service.Queries().ListVocabularyEntries(r.Context(), user.ID)
+			if err != nil {
+				writeError(w, 503, "SERVICE_UNAVAILABLE", r)
+				return
+			}
+			grammarAttempts, err := service.Queries().ListGrammarAttempts(r.Context(), user.ID)
+			if err != nil {
+				writeError(w, 503, "SERVICE_UNAVAILABLE", r)
+				return
+			}
 			bookmarkItems := make([]map[string]any, 0, len(bookmarks))
 			for _, row := range bookmarks {
 				bookmarkItems = append(bookmarkItems, map[string]any{"contentId": row.ContentID, "updatedAt": row.UpdatedAt.Time.UTC()})
@@ -151,6 +176,7 @@ func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore
 func authenticationMiddleware(service *identity.Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "private, no-store")
 			value := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 			user, err := service.Authenticate(r.Context(), value)
 			if err != nil {

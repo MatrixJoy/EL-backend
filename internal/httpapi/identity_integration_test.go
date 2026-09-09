@@ -91,11 +91,32 @@ func TestIdentityHTTPFlow(t *testing.T) {
 	if !bytes.Contains(me.Body.Bytes(), []byte(attemptID.String())) {
 		t.Fatalf("me response missing grammar attempt: %s", me.Body.String())
 	}
+	if me.Header().Get("Cache-Control") != "private, no-store" {
+		t.Fatal("account data must not be cached")
+	}
+	second, err := service.LoginDevelopment(ctx, uuid.New(), identity.MigrationInput{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = service.DeleteUser(ctx, second.UserID) }()
+	logoutRequest := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	logoutRequest.Header.Set("Authorization", "Bearer "+second.AccessToken)
+	loggedOut := httptest.NewRecorder()
+	router.ServeHTTP(loggedOut, logoutRequest)
+	if loggedOut.Code != 204 {
+		t.Fatalf("logout=%d", loggedOut.Code)
+	}
+	if _, err := service.Authenticate(ctx, second.AccessToken); err == nil {
+		t.Fatal("logged-out token must be revoked")
+	}
 	deleteRequest := httptest.NewRequest(http.MethodDelete, "/api/v1/me", nil)
 	deleteRequest.Header.Set("Authorization", "Bearer "+envelope.Data.AccessToken)
 	deleted := httptest.NewRecorder()
 	router.ServeHTTP(deleted, deleteRequest)
 	if deleted.Code != http.StatusNoContent {
 		t.Fatalf("delete=%d", deleted.Code)
+	}
+	if _, err := service.Authenticate(ctx, envelope.Data.AccessToken); err == nil {
+		t.Fatal("deleted account token must be revoked")
 	}
 }
