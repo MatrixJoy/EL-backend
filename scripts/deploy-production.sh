@@ -30,7 +30,8 @@ CGO_ENABLED=0 GOOS=linux GOARCH="$remote_goarch" go build -trimpath -ldflags="-s
 
 $ssh_command "$target" "sudo -n mkdir -p '$deploy_dir' && sudo -n chown '$deploy_user' '$deploy_dir' && mkdir -p '$deploy_dir/.deploy' '$deploy_dir/backups'"
 rsync -az --delete -e "$rsync_shell" \
-  --exclude .git --exclude .env --exclude .env.production --exclude .deploy --exclude tmp --exclude coverage.out \
+  --exclude .git --exclude .env --exclude '.env.*' --exclude .deploy --exclude tmp --exclude coverage.out \
+  --exclude '*.p8' --exclude '*.p12' --exclude '*.key' --exclude certificate \
   --exclude backups --exclude data \
   ./ "$target:$deploy_dir/"
 rsync -az -e "$rsync_shell" "$build_dir/api" "$build_dir/worker" "$build_dir/admin" "$target:$deploy_dir/.deploy/"

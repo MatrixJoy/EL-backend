@@ -1,6 +1,11 @@
 .git
 .github
 .env
+.env.*
+*.p8
+*.p12
+*.key
+certificate
 bin
 tmp
 coverage.out

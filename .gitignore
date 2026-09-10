@@ -1,6 +1,9 @@
 .DS_Store
 .env
 .env.production
+*.p8
+*.p12
+*.key
 bin/
 coverage.out
 tmp/

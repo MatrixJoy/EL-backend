@@ -8,7 +8,9 @@ deploy_dir=${LEARNING_DEPLOY_DIR:-${VOA_DEPLOY_DIR:-/home/oldj/Application/voa-l
 target="$deploy_user@$deploy_host"
 
 ssh -o BatchMode=yes "$target" "mkdir -p '$deploy_dir'"
-rsync -az --delete --exclude .git --exclude .env --exclude tmp --exclude coverage.out ./ "$target:$deploy_dir/"
+rsync -az --delete --exclude .git --exclude .env --exclude '.env.*' \
+  --exclude '*.p8' --exclude '*.p12' --exclude '*.key' --exclude certificate \
+  --exclude tmp --exclude coverage.out ./ "$target:$deploy_dir/"
 ssh "$target" "cd '$deploy_dir' && docker compose config -q"
 
 if ! ssh "$target" "cd '$deploy_dir' && docker compose build api"; then
