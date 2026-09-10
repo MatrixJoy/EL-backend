@@ -20,6 +20,13 @@ import (
 
 type HTTPFakeAppleVerifier struct{}
 
+type HTTPFakeAppleOAuth struct{}
+
+func (HTTPFakeAppleOAuth) Exchange(context.Context, string) (identity.AppleTokens, error) {
+	return identity.AppleTokens{IdentityToken: "exchanged", RefreshToken: "test-refresh"}, nil
+}
+func (HTTPFakeAppleOAuth) Revoke(context.Context, string) error { return nil }
+
 func (HTTPFakeAppleVerifier) Verify(_ context.Context, _, nonce string) (identity.AppleIdentity, error) {
 	return identity.AppleIdentity{Subject: "http-integration-" + nonce}, nil
 }
@@ -50,9 +57,12 @@ func TestIdentityHTTPFlow(t *testing.T) {
 		_, _ = pool.Exec(ctx, "DELETE FROM source_items WHERE id=$1", sourceID)
 	}()
 	service := identity.NewService(pool, HTTPFakeAppleVerifier{}, time.Hour)
+	if err := service.ConfigureAppleOAuth("cn.wozdou.ela", HTTPFakeAppleOAuth{}, make([]byte, 32)); err != nil {
+		t.Fatal(err)
+	}
 	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), BuildInfo{Version: "test"}, Dependencies{Queries: dbgen.New(pool), Identity: service})
 	nonce := uuid.NewString()
-	loginBody, _ := json.Marshal(map[string]any{"identityToken": "test", "nonce": nonce, "migration": map[string]any{"bookmarks": []uuid.UUID{contentID}}})
+	loginBody, _ := json.Marshal(map[string]any{"identityToken": "test", "authorizationCode": "one-use-code", "nonce": nonce, "migration": map[string]any{"bookmarks": []uuid.UUID{contentID}}})
 	login := httptest.NewRecorder()
 	router.ServeHTTP(login, httptest.NewRequest(http.MethodPost, "/api/v1/auth/apple", bytes.NewReader(loginBody)))
 	if login.Code != 200 {
@@ -118,5 +128,8 @@ func TestIdentityHTTPFlow(t *testing.T) {
 	}
 	if _, err := service.Authenticate(ctx, envelope.Data.AccessToken); err == nil {
 		t.Fatal("deleted account token must be revoked")
+	}
+	if err := service.ProcessAppleRevocations(ctx); err != nil {
+		t.Fatal(err)
 	}
 }

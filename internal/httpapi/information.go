@@ -26,7 +26,8 @@ func mountInformationPages(r chi.Router, deps Dependencies) {
 			"Learning works without an account. Each article retains its source attribution. Browse our help and privacy pages below, or send feedback about the app or its content.",
 		}},
 		"/privacy": {Title: "Privacy / 隐私说明", Paragraphs: []string{
-			"Updated 2026-09-10. Learning English is an independent English learning app. You can browse and learn without an account.",
+			"When Sign in with Apple is enabled, we use Apple's account identifier and validate the one-time authorization code on our server. Apple refresh credentials are encrypted in our database and never included in learning backups. After account deletion, an encrypted credential may remain temporarily in a separate revocation queue until Apple confirms revocation; failures are retried automatically. The credential is then removed.",
+			"Updated 2026-09-11. Learning English is an independent English learning app. You can browse and learn without an account.",
 			"Anonymous learning data — saved lessons, listening progress, words, grammar practice and your recordings — stays on your device. Removing the app removes that data. You can export a learning backup from Account → Data & Privacy and restore it on another installation. Backups contain your recordings and learning data, but never account tokens. Keep the exported file private.",
 			"When you choose to sign in, the service stores your account identifier and syncs your learning data, private recordings, transcripts and practice feedback. These are used for app functionality and learning recommendations. We do not include advertising or third-party tracking SDKs, sell learning data, or use your recordings for advertising.",
 			"Microphone permission is requested only when you record. Speech recognition is optional and performed on the device when supported; if unavailable, recording and playback still work. Camera, contacts and location access are not requested.",

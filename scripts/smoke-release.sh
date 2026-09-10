@@ -7,6 +7,7 @@ work_dir=$(mktemp -d)
 
 curl -fsS --max-time 15 "$origin/health/ready" | jq -e '.status == "ready"' >/dev/null
 curl -fsS --max-time 15 "$origin/api/v1/bootstrap" | jq -e '.data.anonymous == true' >/dev/null
+curl -fsS --max-time 15 "$origin/api/v1/auth/capabilities" | jq -e '(.data.appleSignInEnabled | type) == "boolean" and (.data.developmentSignInEnabled | type) == "boolean"' >/dev/null
 curl -fsS --max-time 15 "$origin/api/v1/home" | jq -e '[.data.sections[].items[]] | length > 0' >/dev/null
 curl -fsS --max-time 15 "$origin/api/v1/contents" -o "$work_dir/contents.json"
 id=$(jq -er '.data[0].id' "$work_dir/contents.json")

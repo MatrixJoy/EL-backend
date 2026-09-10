@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -57,6 +58,15 @@ func main() {
 		os.Exit(1)
 	}
 	identityService := identity.NewService(pool, identity.NewAppleJWTVerifier(cfg.AppleClientID, nil), cfg.SessionTTL)
+	if cfg.AppleTeamID != "" || cfg.AppleKeyID != "" || cfg.ApplePrivateKeyBase64 != "" || cfg.AppleTokenEncryptionKey != "" {
+		key, keyErr := base64.StdEncoding.DecodeString(cfg.ApplePrivateKeyBase64)
+		encryptionKey, encryptionErr := base64.StdEncoding.DecodeString(cfg.AppleTokenEncryptionKey)
+		oauth, oauthErr := identity.NewAppleOAuthClient(cfg.AppleClientID, cfg.AppleTeamID, cfg.AppleKeyID, key)
+		if keyErr != nil || encryptionErr != nil || oauthErr != nil || identityService.ConfigureAppleOAuth(cfg.AppleClientID, oauth, encryptionKey) != nil {
+			logger.Error("Apple login configuration is incomplete or invalid")
+			os.Exit(1)
+		}
+	}
 	publicationService := publishing.NewService(pool, mediaStore, cfg.Environment)
 	support := func(ctx context.Context, request httpapi.SupportRequest) error {
 		_, err := pool.Exec(ctx, "INSERT INTO support_requests (id, kind, email, message) VALUES ($1,$2,$3,$4)", request.ID, request.Kind, request.Email, request.Message)
@@ -70,6 +80,22 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	go func() {
+		ticker := time.NewTicker(time.Minute)
+		defer ticker.Stop()
+		for {
+			batchCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
+			if err := identityService.ProcessAppleRevocations(batchCtx); err != nil && ctx.Err() == nil {
+				logger.Error("Apple revocation queue could not be processed")
+			}
+			cancel()
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+			}
+		}
+	}()
 
 	go func() {
 		logger.Info("api listening", "addr", cfg.HTTPAddr, "env", cfg.Environment)

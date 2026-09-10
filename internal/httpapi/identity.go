@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -17,19 +18,30 @@ import (
 type userContextKey struct{}
 
 func mountIdentityRoutes(r chi.Router, service *identity.Service, userMediaStore recordingObjectStore, developmentAuth bool) {
+	r.Get("/auth/capabilities", func(w http.ResponseWriter, request *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		writeJSON(w, 200, map[string]any{"data": map[string]any{
+			"appleSignInEnabled": service.AppleSignInEnabled(), "appleClientId": service.AppleClientID(), "developmentSignInEnabled": developmentAuth,
+		}})
+	})
 	r.Post("/auth/apple", func(w http.ResponseWriter, request *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		var body struct {
-			IdentityToken string                  `json:"identityToken"`
-			Nonce         string                  `json:"nonce"`
-			Migration     identity.MigrationInput `json:"migration"`
+			AuthorizationCode string                  `json:"authorizationCode"`
+			IdentityToken     string                  `json:"identityToken"`
+			Nonce             string                  `json:"nonce"`
+			Migration         identity.MigrationInput `json:"migration"`
 		}
 		if json.NewDecoder(http.MaxBytesReader(w, request.Body, 1<<20)).Decode(&body) != nil {
 			writeError(w, 400, "VALIDATION_ERROR", request)
 			return
 		}
-		result, err := service.Login(request.Context(), body.IdentityToken, body.Nonce, body.Migration)
+		result, err := service.LoginWithAuthorizationCode(request.Context(), body.IdentityToken, body.Nonce, body.AuthorizationCode, body.Migration)
 		if err != nil {
+			if errors.Is(err, identity.ErrAppleUnavailable) {
+				writeError(w, 503, "SERVICE_UNAVAILABLE", request)
+				return
+			}
 			writeError(w, 401, "UNAUTHORIZED", request)
 			return
 		}

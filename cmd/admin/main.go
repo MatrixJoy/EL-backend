@@ -28,6 +28,14 @@ func main() {
 	defer pool.Close()
 	q := dbgen.New(pool)
 	switch os.Args[1] {
+	case "apple-auth-status":
+		var active, pending, retrying int
+		if err := pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE user_id IS NOT NULL),
+			count(*) FILTER (WHERE user_id IS NULL), count(*) FILTER (WHERE user_id IS NULL AND attempts>0)
+			FROM apple_credentials`).Scan(&active, &pending, &retrying); err != nil {
+			fatal(err)
+		}
+		fmt.Printf("active_credentials=%d pending_revocations=%d retrying=%d\n", active, pending, retrying)
 	case "list-feedback":
 		rows, err := pool.Query(ctx, "SELECT id, kind, email, message FROM support_requests WHERE resolved_at IS NULL ORDER BY created_at LIMIT 100")
 		if err != nil {
@@ -106,7 +114,7 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintln(os.Stderr, "usage: admin list-review | publish <content-id> | hide <content-id> | list-feedback | resolve-feedback <request-id>")
+	fmt.Fprintln(os.Stderr, "usage: admin list-review | publish <content-id> | hide <content-id> | list-feedback | resolve-feedback <request-id> | apple-auth-status")
 	os.Exit(2)
 }
 func fatal(err error) { fmt.Fprintln(os.Stderr, err); os.Exit(1) }

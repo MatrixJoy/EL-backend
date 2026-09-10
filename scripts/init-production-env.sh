@@ -38,7 +38,7 @@ umask 077
 {
   printf 'LEARNING_POSTGRES_PASSWORD=%s\n' "$postgres_password"
   printf 'LEARNING_CMS_PUBLISH_TOKEN=%s\n' "$publish_token"
-  printf 'LEARNING_APPLE_CLIENT_ID=com.oldj.englishlearning\n'
+  printf 'LEARNING_APPLE_CLIENT_ID=cn.wozdou.ela\n'
   printf 'LEARNING_OBJECT_ENDPOINT=cos.%s.myqcloud.com\n' "$cos_region"
   printf 'LEARNING_OBJECT_ACCESS_KEY=%s\n' "$cos_secret_id"
   printf 'LEARNING_OBJECT_SECRET_KEY=%s\n' "$cos_secret_key"

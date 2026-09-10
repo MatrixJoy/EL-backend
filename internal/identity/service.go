@@ -38,6 +38,7 @@ type MigrationInput struct {
 	GrammarAttempts []GrammarAttemptInput `json:"grammarAttempts"`
 }
 type LoginResult struct {
+	AppleUserID string    `json:"appleUserId,omitempty"`
 	UserID      uuid.UUID `json:"userId"`
 	AccessToken string    `json:"accessToken"`
 	ExpiresAt   time.Time `json:"expiresAt"`
@@ -46,13 +47,20 @@ type LoginResult struct {
 var ErrInvalidGrammarAttempt = errors.New("invalid grammar attempt")
 
 type Service struct {
-	pool       *pgxpool.Pool
-	verifier   AppleVerifier
-	sessionTTL time.Duration
+	appleClientID string
+	oauth         AppleOAuth
+	tokenCipher   *tokenCipher
+	pool          *pgxpool.Pool
+	verifier      AppleVerifier
+	sessionTTL    time.Duration
 }
 
 func NewService(pool *pgxpool.Pool, verifier AppleVerifier, sessionTTL time.Duration) *Service {
-	return &Service{pool: pool, verifier: verifier, sessionTTL: sessionTTL}
+	s := &Service{pool: pool, verifier: verifier, sessionTTL: sessionTTL}
+	if verifier, ok := verifier.(*AppleJWTVerifier); ok {
+		s.appleClientID = verifier.audience
+	}
+	return s
 }
 
 func (s *Service) Login(ctx context.Context, identityToken, nonce string, migration MigrationInput) (LoginResult, error) {
@@ -71,7 +79,7 @@ func (s *Service) LoginDevelopment(ctx context.Context, deviceID uuid.UUID, migr
 	return s.createLogin(ctx, "development:"+deviceID.String(), nil, migration)
 }
 
-func (s *Service) createLogin(ctx context.Context, subject string, identityTokenHash []byte, migration MigrationInput) (LoginResult, error) {
+func (s *Service) createLogin(ctx context.Context, subject string, identityTokenHash []byte, migration MigrationInput, credentials ...sealedAppleToken) (LoginResult, error) {
 	tx, err := s.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return LoginResult{}, err
@@ -85,6 +93,14 @@ func (s *Service) createLogin(ctx context.Context, subject string, identityToken
 	if len(identityTokenHash) > 0 {
 		if err := q.RecordAppleIdentityTokenUse(ctx, dbgen.RecordAppleIdentityTokenUseParams{TokenHash: identityTokenHash, UserID: user.ID}); err != nil {
 			return LoginResult{}, fmt.Errorf("identity token replay rejected: %w", err)
+		}
+	}
+	for _, credential := range credentials {
+		if _, err := tx.Exec(ctx, `INSERT INTO apple_credentials (id, user_id, encrypted_refresh_token)
+			VALUES ($1,$2,$3) ON CONFLICT (user_id) DO UPDATE SET id=excluded.id,
+			encrypted_refresh_token=excluded.encrypted_refresh_token, attempts=0, next_attempt_at=now()`,
+			credential.id, user.ID, credential.ciphertext); err != nil {
+			return LoginResult{}, err
 		}
 	}
 	for _, contentID := range migration.Bookmarks {

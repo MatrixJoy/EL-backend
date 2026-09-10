@@ -28,7 +28,8 @@
 
 | Method | Path | 用途 |
 |---|---|---|
-| POST | `/auth/apple` | Apple identity token 换取会话 |
+| GET | `/auth/capabilities` | 获取真实登录能力与 Apple Client ID；禁止缓存 |
+| POST | `/auth/apple` | identityToken + authorizationCode + nonce 校验换取会话；返回 appleUserId |
 | POST | `/auth/development` | 仅测试环境：设备开发身份换取会话，生产环境不挂载 |
 | GET | `/me` | 当前用户 |
 | PUT/DELETE | `/me/bookmarks/{contentId}` | 收藏/取消收藏 |

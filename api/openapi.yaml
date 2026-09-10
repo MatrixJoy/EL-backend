@@ -83,11 +83,16 @@ paths:
     head:
       operationId: headMedia
       responses: {"200": {description: Media headers}, "404": {$ref: "#/components/responses/Error"}}
+  /auth/capabilities:
+    get:
+      operationId: getAuthenticationCapabilities
+      description: Uncached availability of Apple and development sign-in; appleClientId must match the native bundle ID.
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}}
   /auth/apple:
     post:
       operationId: authenticateWithApple
-      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [identityToken, nonce], properties: {identityToken: {type: string}, nonce: {type: string}, migration: {type: object}}}}}}
-      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "401": {$ref: "#/components/responses/Error"}}
+      requestBody: {required: true, content: {application/json: {schema: {type: object, required: [identityToken, authorizationCode, nonce], properties: {identityToken: {type: string}, authorizationCode: {type: string}, nonce: {type: string}, migration: {type: object}}}}}}
+      responses: {"200": {$ref: "#/components/responses/JSONSuccess"}, "401": {$ref: "#/components/responses/Error"}, "503": {$ref: "#/components/responses/Error"}}
   /auth/development:
     post:
       operationId: authenticateDevelopmentDevice
